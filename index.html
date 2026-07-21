@@ -1,0 +1,3962 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>経理台帳</title>
+<style>
+  /* ===============================================
+     案5 ユニバーサルデザイン(2026-07-21 全面変更)
+     正: 経理\docs\提案\デザイン案\案5-ユニバーサル.html のトークン。
+     色弱対応配色(青と橙が軸。赤と緑を並べない)。
+     すべての区別を「色+形(アイコン)+文字」の三重で符号化。
+     UD書体優先・基本17px・行間1.75・コントラスト7:1以上。
+     =============================================== */
+  :root {
+    color-scheme: light;
+    --bg: #FBFBF9;
+    --card: #FFFFFF;
+    --ink: #20242B;          /* 本文 15:1 */
+    --sub: #50565F;          /* 補助 7.3:1 */
+    --line: #C9CDD4;
+    --blue: #0058A3;         /* 会議費・主ボタン(白文字と7.6:1) */
+    --blue-bg: #E5F0FA;
+    --orange: #8A4B00;       /* 接待交際費(7.1:1) */
+    --orange-bg: #FCEBD4;
+    --purple: #5B3E96;       /* その他科目・請求(立替)関連 */
+    --purple-bg: #EEE9F8;
+    --warn: #9A3412;         /* 未承認・警告・破壊的操作(白文字と7:1) */
+    --warn-bg: #FFF4E5;
+    --font-ud: "BIZ UDGothic", "UD デジタル 教科書体 N-R", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); }
+  body {
+    font-family: var(--font-ud);
+    color: var(--ink);
+    font-size: 17px;
+    line-height: 1.75;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 448px; margin: 0 auto; padding: 20px 14px 120px; }
+  button { font-family: var(--font-ud); cursor: pointer; }
+
+  /* ヘッダー */
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 8px; }
+  .header h1 { font-size: 25px; font-weight: 800; }
+  .header-btns { display: flex; gap: 6px; }
+  .chip-btn {
+    font-size: 15px; font-weight: 700; color: var(--ink); background: var(--card);
+    border: 1.5px solid var(--ink); border-radius: 10px; padding: 8px 10px;
+    min-height: 46px;
+  }
+
+  /* 保存バー(2026-07-21 ユーザー指示: 手動保存ボタン+保存状態の常時表示) */
+  .save-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .save-btn {
+    flex-shrink: 0; font-size: 16px; font-weight: 800; color: #FFF; background: var(--ink);
+    border: none; border-radius: 10px; padding: 8px 20px; min-height: 46px;
+    transition: transform .06s ease;
+  }
+  .save-btn:active { transform: translateY(2px) scale(0.96); }
+  .save-status { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; font-size: 14px; line-height: 1.5; min-width: 0; }
+  .save-done { font-weight: 800; color: var(--blue); }
+  .save-dirty { font-weight: 800; color: var(--warn); }
+
+  /* 警告アイコン(丸地に白の「!」。色が見えなくても形と文字で分かる) */
+  .warn-ic {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+    background: var(--warn); color: #FFF; font-size: 20px; font-weight: 800;
+    display: inline-flex; align-items: center; justify-content: center; line-height: 1;
+  }
+  .warn-ic.sm { width: 24px; height: 24px; font-size: 15px; }
+
+  /* サマリー */
+  .summary {
+    background: var(--card); border: 1.5px solid var(--ink); border-radius: 14px;
+    padding: 12px 18px; margin-bottom: 14px;
+    display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0 8px;
+  }
+  .summary .label { font-size: 15px; font-weight: 800; }
+  .summary .amount { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+  /* お知らせ(警告=warn系・案内=blue系。色+枠+アイコン+文字の三重) */
+  .notice { font-size: 15px; border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; line-height: 1.7; background: var(--card); border: 1.5px solid var(--line); }
+  .notice-warn { color: var(--ink); background: var(--warn-bg); border: 1.5px solid var(--warn); }
+  .notice-error { color: var(--ink); background: var(--warn-bg); border: 2px solid var(--warn); font-weight: 700; }
+  .notice-info { color: var(--ink); background: var(--blue-bg); border: 1.5px solid var(--blue); white-space: pre-line; }
+  .notice .n-head { display: flex; align-items: flex-start; gap: 8px; }
+  .notice .n-head .warn-ic { margin-top: 3px; }
+  .notice button.inline-act {
+    display: block; width: 100%; margin-top: 8px; padding: 12px; min-height: 52px;
+    background: var(--warn); color: #FFF; border: none; border-radius: 10px; font-size: 15px; font-weight: 800;
+  }
+
+  /* 入力ボタン群 */
+  .btn { display: block; width: 100%; border-radius: 12px; font-weight: 800; letter-spacing: 0.04em; margin-bottom: 10px; }
+  .btn:active { opacity: 0.85; }
+  .btn-primary { background: var(--blue); color: #FFF; border: none; font-size: 18px; padding: 15px; min-height: 56px; }
+  .btn-outline-ai { background: var(--card); color: var(--blue); border: 2px solid var(--blue); font-size: 16px; padding: 13px; min-height: 52px; }
+  /* 手入力の2つの入り口(2026-07-21改修13-10)。横に並べ、色+枠+文字で役割を区別する。
+     回収は請求・立替系なので紫(--purple)。中身に押し広げられないよう min-width:0 */
+  .entry-btns { display: flex; gap: 8px; }
+  .entry-btns > .btn { min-width: 0; }
+  .btn-collect { background: var(--card); color: var(--purple); border: 2px solid var(--purple); font-size: 16px; padding: 13px 6px; min-height: 56px; }
+
+  /* パネル共通 */
+  .panel { background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+  .panel .hint { font-size: 14px; color: var(--sub); font-weight: 700; line-height: 1.7; margin-bottom: 8px; }
+  textarea {
+    width: 100%; font-family: ui-monospace, monospace; font-size: 16px;
+    border: 1.5px solid var(--line); border-radius: 10px; padding: 10px;
+    background: var(--card); color: var(--ink);
+  }
+  .panel .act {
+    width: 100%; padding: 13px; margin-top: 8px; min-height: 52px;
+    background: var(--blue); color: #FFF; border: none; border-radius: 10px; font-size: 16px; font-weight: 800;
+  }
+
+  /* フォーム部品(ラベルは太字ink・入力欄は1.5px枠) */
+  .field { display: block; margin-bottom: 8px; }
+  .field > span { font-size: 13px; color: var(--ink); font-weight: 700; display: block; }
+  input[type="text"], input[type="date"], select {
+    font-family: var(--font-ud);
+    border: 1.5px solid var(--line); background: var(--card); color: var(--ink);
+    border-radius: 8px; padding: 9px 10px; font-size: 17px; width: 100%; min-height: 44px;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  /* 2列(日付・金額)が中身に押し広げられないようにする(±ボタン追加に伴う調整・2026-07-21改修12-2) */
+  .grid2 > * { min-width: 0; }
+  /* 金額欄の±ボタン(2026-07-21改修12-2): スマホのテンキーに「−」が無いので、タップで符号を反転する */
+  .field > .amt-wrap, .amt-wrap { display: flex; gap: 6px; align-items: stretch; }
+  .amt-wrap input { flex: 1 1 auto; min-width: 0; width: auto; }
+  .sign-btn {
+    flex: 0 0 auto; width: 48px; min-height: 44px; border: 2px solid var(--ink); background: var(--card);
+    color: var(--ink); border-radius: 8px; font-size: 19px; font-weight: 800; line-height: 1;
+  }
+  .sign-btn.on { background: var(--warn); border-color: var(--warn); color: #FFF; }
+  .sign-note { font-size: 12px; font-weight: 800; color: var(--warn); }
+  select:focus, input:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+
+  /* 承認待ち(未承認): warn-bg地+太い破線枠+!アイコン+文字。点滅表現は使わない */
+  .pending-card { position: relative; background: var(--warn-bg); border: 4px dashed var(--warn); border-radius: 14px; padding: 14px 14px 16px; margin-bottom: 16px; }
+  .pending-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
+  .pending-title { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 18px; color: var(--warn); }
+  .pending-source { font-size: 13px; color: var(--sub); font-weight: 700; }
+  .pending-source.rule { color: var(--blue); }
+  .fold-btn { font-size: 14px; font-weight: 700; color: var(--ink); background: var(--card); border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 10px; min-height: 44px; }
+  .pending-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .discard-btn { font-size: 15px; font-weight: 700; color: var(--sub); background: var(--card); border: 1.5px solid var(--line); border-radius: 10px; padding: 13px 14px; min-height: 52px; }
+  .stamp-btn {
+    width: 80px; height: 80px; border-radius: 50%;
+    border: 3px solid var(--warn); color: var(--warn); background: var(--card);
+    font-weight: 800; font-size: 19px; letter-spacing: 0.1em; line-height: 1.3;
+    transition: transform .1s;
+  }
+  /* 押した感の強化(2026-07-21改修E): 押下でしっかり縮小 → 大きめの朱印スタンプ演出(コントラストは--warn系で7:1維持) */
+  .stamp-btn:active { transform: scale(0.86); }
+  .stamp-overlay {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.6); border-radius: 14px;
+  }
+  .stamp-mark {
+    width: 112px; height: 112px; border-radius: 50%;
+    border: 5px solid var(--warn); color: var(--warn); background: var(--card);
+    box-shadow: 0 0 0 8px var(--warn-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 46px;
+    animation: stampIn .5s cubic-bezier(.2,1.4,.4,1) forwards;
+  }
+  .pending-collapsed {
+    width: 100%; margin-bottom: 12px; padding: 10px 12px; min-height: 52px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: var(--warn-bg); border: 4px dashed var(--warn); border-radius: 12px; color: var(--ink);
+  }
+  .pending-collapsed .left { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 15px; font-weight: 700; }
+  .pending-collapsed .tag { color: var(--warn); font-weight: 800; white-space: nowrap; }
+  .pending-collapsed .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pending-collapsed .open-label { font-size: 14px; font-weight: 700; color: var(--blue); white-space: nowrap; }
+
+  /* マイナス記帳(返金・値引き)の確認(警告様式: 破線枠+アイコン+文字) */
+  .neg-confirm { border: 4px dashed var(--warn); background: var(--card); border-radius: 12px; padding: 12px; font-size: 15px; line-height: 1.7; margin-bottom: 12px; color: var(--ink); }
+  .neg-confirm .row { display: flex; gap: 8px; margin-top: 8px; }
+  /* 消える請求(立替)の警告行(2026-07-21改修13-1)。アイコン+文字+色の三重符号化 */
+  .neg-confirm .bill-lost { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; padding: 8px 10px; background: var(--warn-bg); border: 1.5px solid var(--warn); border-radius: 10px; font-weight: 800; }
+  .neg-confirm .go { flex-grow: 1; padding: 13px; min-height: 52px; background: var(--warn); color: #FFF; border: none; border-radius: 10px; font-size: 16px; font-weight: 800; }
+  .neg-confirm .stop { padding: 13px 16px; min-height: 52px; background: var(--card); color: var(--sub); border: 1.5px solid var(--line); border-radius: 10px; font-size: 15px; font-weight: 700; }
+
+  /* まとめて承認(warn塗り52px級。確認は未承認と同じ破線枠+!+文字) */
+  .bulk-bar { margin-bottom: 12px; }
+  .bulk-btn { background: var(--warn); color: #FFF; border: none; font-size: 16px; padding: 13px; min-height: 52px; }
+  .bulk-confirm { background: var(--warn-bg); border: 4px dashed var(--warn); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+  .bulk-confirm .msg { font-size: 16px; margin-bottom: 4px; display: flex; align-items: flex-start; gap: 8px; }
+  .bulk-confirm .msg .warn-ic { margin-top: 3px; }
+  .bulk-confirm .sub { font-size: 14px; color: var(--sub); font-weight: 700; margin-bottom: 8px; }
+  .bulk-confirm .row { display: flex; gap: 8px; }
+  .bulk-confirm .go { flex-grow: 1; padding: 13px; min-height: 52px; background: var(--warn); color: #FFF; border: none; border-radius: 10px; font-size: 16px; font-weight: 800; }
+  .bulk-confirm .stop { padding: 13px 16px; min-height: 52px; background: var(--card); color: var(--sub); border: 1.5px solid var(--line); border-radius: 10px; font-size: 15px; font-weight: 700; }
+
+  /* タブ */
+  .tabs { display: flex; gap: 8px; margin-bottom: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tab {
+    font-size: 15px; font-weight: 700; padding: 8px 14px; border-radius: 999px; white-space: nowrap; min-height: 44px;
+    background: var(--card); color: var(--ink); border: 1.5px solid var(--line); flex-shrink: 0;
+  }
+  .tab.on { background: var(--blue); color: #FFF; border-color: var(--blue); font-weight: 800; }
+  /* 取引先チップの長押し2秒(2026-07-21改修11-1: 通常タップ=単一選択 / 2秒長押し=複数選択)。
+     長押し中は左から色が満ちていく進行表示を出す(色だけでなく枠も太くする) */
+  .tab.lp-target { position: relative; overflow: hidden; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  .tab.lp { border-width: 3px; border-color: var(--purple); }
+  .tab.lp::after {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+    background: var(--purple); opacity: 0.30; pointer-events: none;
+    animation: lpFill 2s linear forwards;
+  }
+  @keyframes lpFill { from { width: 0; } to { width: 100%; } }
+  .multi-note { font-size: 14px; font-weight: 800; color: var(--purple); margin: 2px 0 8px; }
+
+  /* 回収済みの達成演出(2026-07-21改修11-6): 承認印と同じ様式の「済」スタンプ */
+  .paid-stamp-layer { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+
+  /* 請求先ごとの安定色バッジ(2026-07-21改修11-6): 名前のハッシュで色を固定。
+     色だけに頼らず、頭文字+フルネームの文字を必ず併記する(三重符号化) */
+  .client-badge {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 26px; height: 26px; border-radius: 8px; margin-right: 6px;
+    color: #FFF; font-size: 14px; font-weight: 800; vertical-align: -5px;
+  }
+
+  /* 科目の三重符号化(色+形+文字): 会議費=青● / 接待交際費=橙■ / その他13科目=紫◆ */
+  .cat-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 14px; font-weight: 800; border-radius: 8px; padding: 3px 10px;
+    border-width: 2px; border-style: solid;
+  }
+  .cat-kaigi { color: var(--blue); background: var(--blue-bg); border-color: var(--blue); }
+  .cat-settai { color: var(--orange); background: var(--orange-bg); border-color: var(--orange); }
+  .cat-sonota { color: var(--purple); background: var(--purple-bg); border-color: var(--purple); }
+  .shape { font-size: 13px; line-height: 1; }
+  select.cat-kaigi, select.cat-settai { font-weight: 800; }
+  select.cat-kaigi { color: var(--blue); background: var(--blue-bg); border-color: var(--blue); }
+  select.cat-settai { color: var(--orange); background: var(--orange-bg); border-color: var(--orange); }
+
+  /* ワンタップ仕分けチップ(形+科目名+色の三重符号化。横1行スクロール) */
+  .cat-chips { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 8px; padding-bottom: 2px; }
+  .cat-chip { flex-shrink: 0; min-height: 48px; text-align: left; background: var(--card); border: 1.5px solid var(--line); border-radius: 10px; padding: 5px 10px; color: var(--ink); }
+  .cat-chip .t { display: block; font-size: 15px; font-weight: 800; white-space: nowrap; line-height: 1.5; }
+  .cat-chip .t .shape { margin-right: 4px; }
+  .cat-chip .s { display: block; font-size: 12px; color: var(--sub); font-weight: 700; white-space: nowrap; line-height: 1.4; }
+  .cat-chip.on { border: 2px solid var(--purple); background: var(--purple-bg); }
+  .cat-chip.on .t { color: var(--purple); }
+  .cat-chip.on-kaigi { border: 2px solid var(--blue); background: var(--blue-bg); }
+  .cat-chip.on-kaigi .t { color: var(--blue); }
+  .cat-chip.on-settai { border: 2px solid var(--orange); background: var(--orange-bg); }
+  .cat-chip.on-settai .t { color: var(--orange); }
+
+  /* 人数選択(会議費/接待交際費のときだけ表示)と割り勘表示 */
+  .persons-box { border: 1.5px solid var(--line); background: var(--card); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+  .persons-box .p-label { font-size: 13px; color: var(--ink); font-weight: 700; margin-bottom: 4px; }
+  .p-chips { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; margin-bottom: 6px; }
+  .p-chip { flex-shrink: 0; min-width: 44px; min-height: 44px; font-size: 16px; font-weight: 800; background: var(--card); border: 1.5px solid var(--line); border-radius: 10px; color: var(--ink); padding: 4px 8px; }
+  .p-chip.on { border: 2px solid var(--blue); background: var(--blue-bg); color: var(--blue); }
+  .p-calc { font-size: 15px; font-weight: 800; }
+  .p-judge { display: inline-block; font-size: 14px; font-weight: 800; border-radius: 8px; border-width: 2px; border-style: solid; padding: 2px 10px; margin: 2px 0 6px; }
+  .p-judge.j-kaigi { color: var(--blue); background: var(--blue-bg); border-color: var(--blue); }
+  .p-judge.j-settai { color: var(--orange); background: var(--orange-bg); border-color: var(--orange); }
+  .p-note { font-size: 13px; color: var(--sub); font-weight: 700; }
+  .p-label { font-size: 13px; color: var(--ink); font-weight: 700; margin-bottom: 4px; }
+
+  /* 科目別集計 */
+  .breakdown { background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 10px 16px; margin: 8px 0 16px; }
+  .breakdown h3 { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+  .breakdown .row { display: flex; justify-content: space-between; align-items: center; font-size: 15px; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+  .breakdown .row:last-of-type { border-bottom: none; }
+  .breakdown .row .val { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 17px; }
+  .breakdown .total { display: flex; justify-content: space-between; font-size: 17px; font-weight: 800; border-top: 2px solid var(--ink); margin-top: 4px; padding-top: 8px; }
+  .breakdown .total .val { font-variant-numeric: tabular-nums; }
+
+  /* 台帳(行頭に48px科目スタンプ: 形+略字) */
+  .month-sec { margin-bottom: 24px; }
+  .month-head { display: flex; align-items: baseline; justify-content: space-between; padding: 4px 2px 8px; }
+  .month-head h2 { font-size: 16px; font-weight: 800; }
+  .month-head .total { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .ledger-card { background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 2px 12px; }
+  .entry { border-bottom: 1px solid var(--line); }
+  .entry:last-child { border-bottom: none; }
+  .entry-row {
+    width: 100%; text-align: left; padding: 12px 0;
+    display: flex; align-items: center; gap: 12px;
+    background: none; border: none; color: var(--ink);
+  }
+  .stamp {
+    flex-shrink: 0; width: 48px; height: 48px; border-radius: 10px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-weight: 800; border-width: 2px; border-style: solid; line-height: 1.2;
+  }
+  .stamp .sh { font-size: 12px; }
+  .stamp .ab { font-size: 12px; }
+  .stamp.kaigi { color: var(--blue); background: var(--blue-bg); border-color: var(--blue); }
+  .stamp.settai { color: var(--orange); background: var(--orange-bg); border-color: var(--orange); }
+  .stamp.sonota { color: var(--purple); background: var(--purple-bg); border-color: var(--purple); }
+  .entry-main { flex-grow: 1; min-width: 0; }
+  .entry-store { display: block; font-size: 17px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .entry-sub { display: block; font-size: 14px; color: var(--sub); font-weight: 700; line-height: 1.5; }
+  .entry-amount { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .amount-minus { color: var(--warn); }
+  .bill-inline { color: var(--purple); }
+  .entry-quick { padding: 0 0 12px 60px; display: flex; align-items: center; gap: 8px; }
+  .entry-quick select { width: auto; flex-grow: 1; font-size: 15px; padding: 8px; min-width: 0; }
+  .mini-btn-ai { font-size: 15px; font-weight: 700; color: var(--blue); background: var(--card); border: 1.5px solid var(--blue); border-radius: 8px; padding: 8px 12px; min-height: 44px; }
+  .mini-btn-shu { font-size: 15px; font-weight: 700; color: var(--warn); background: var(--card); border: 1.5px solid var(--warn); border-radius: 8px; padding: 8px 12px; min-height: 44px; }
+  .entry-edit { padding: 0 0 12px; }
+  .entry-edit .row { display: flex; gap: 8px; }
+  .entry-edit .save { flex-grow: 1; padding: 13px; min-height: 52px; background: var(--blue); color: #FFF; border: none; border-radius: 10px; font-size: 16px; font-weight: 800; }
+  .entry-edit .cancel { padding: 13px 16px; min-height: 52px; background: var(--card); color: var(--sub); border: 1.5px solid var(--line); border-radius: 10px; font-size: 15px; font-weight: 700; }
+
+  .empty { text-align: center; padding: 48px 20px; color: var(--sub); font-size: 15px; font-weight: 700; line-height: 2; background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; }
+  .empty .title { font-size: 19px; font-weight: 800; color: var(--ink); margin-bottom: 6px; }
+
+  /* 全画面ページ(取引先・設定・請求) */
+  .page { position: fixed; inset: 0; background: var(--bg); z-index: 60; overflow-y: auto; }
+  .page-inner { max-width: 448px; margin: 0 auto; padding: 20px 14px 48px; font-size: 15px; line-height: 1.8; }
+  .page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .page-head h2 { font-size: 22px; font-weight: 800; }
+  .close-btn { font-size: 15px; color: var(--ink); background: var(--card); border: 1.5px solid var(--ink); border-radius: 10px; padding: 10px 16px; font-weight: 800; min-height: 52px; }
+  .page section { margin-bottom: 16px; background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+  .page h3 { font-size: 17px; font-weight: 800; margin-bottom: 4px; }
+  .page-note { font-size: 14px; color: var(--sub); font-weight: 700; margin-bottom: 12px; }
+  .mono { font-family: ui-monospace, monospace; font-size: 13px; }
+  .client-add { display: flex; gap: 8px; margin-bottom: 16px; }
+  .client-add input { flex-grow: 1; }
+  .client-add button { background: var(--blue); color: #FFF; border: none; border-radius: 10px; font-size: 16px; font-weight: 800; padding: 0 16px; min-height: 52px; }
+  .client-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .client-row .name { font-size: 17px; font-weight: 700; }
+  .copy-block { background: var(--card); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px; font-size: 13px; line-height: 1.7; margin: 6px 0; }
+  .sub-act { font-size: 15px; color: var(--blue); background: var(--card); border: 1.5px solid var(--blue); border-radius: 8px; padding: 10px 12px; font-weight: 700; margin: 4px 8px 4px 0; min-height: 44px; }
+
+  /* CSVパネル */
+  .sheet-back { position: fixed; inset: 0; display: flex; align-items: flex-end; justify-content: center; background: rgba(32,36,43,0.5); z-index: 50; }
+  .sheet { width: 100%; max-width: 448px; background: var(--card); border: 1.5px solid var(--ink); border-bottom: none; border-radius: 14px 14px 0 0; max-height: 80vh; overflow-y: auto; padding: 16px 14px; }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .sheet-head .title { font-weight: 800; font-size: 18px; }
+  .sheet-head .close { font-size: 15px; font-weight: 700; color: var(--ink); background: var(--card); border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 14px; min-height: 44px; }
+  .sheet .btn-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .sheet .copy { flex-grow: 1; padding: 13px; min-height: 52px; background: var(--blue); color: #FFF; border: none; border-radius: 10px; font-size: 16px; font-weight: 800; }
+  .sheet .dl { padding: 13px; min-height: 52px; background: var(--card); color: var(--blue); border: 2px solid var(--blue); border-radius: 10px; font-size: 15px; font-weight: 700; }
+  .sheet .hint { font-size: 14px; color: var(--sub); font-weight: 700; line-height: 1.7; margin-bottom: 8px; }
+
+  /* 請 割り勘・立替 欄(2026-07-21改修E: 紫=請求系。2px枠+紫背景+見出しラベル「請」の三重区別。既定は閉) */
+  .bill-badge {
+    display: inline-flex; width: 22px; height: 22px; border-radius: 6px; margin-right: 6px;
+    background: var(--purple); color: #FFF; font-size: 13px; font-weight: 800;
+    align-items: center; justify-content: center; vertical-align: -3px; flex-shrink: 0;
+  }
+  .bill-toggle {
+    width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: var(--card); border: 2px solid var(--purple); border-radius: 10px; padding: 10px 12px;
+    font-size: 15px; color: var(--purple); font-weight: 800; margin-bottom: 8px; min-height: 48px; text-align: left;
+  }
+  .bill-toggle .sum { color: var(--purple); font-variant-numeric: tabular-nums; }
+  .bill-toggle.head { border: none; padding: 0 0 4px; min-height: auto; margin-bottom: 4px; background: none; }
+  .bill-box { border: 2px solid var(--purple); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; background: var(--purple-bg); }
+  .bill-box .quick { display: flex; gap: 8px; margin: 4px 0 8px; }
+  .bill-box .quick button {
+    flex-grow: 1; font-size: 14px; padding: 10px 4px; min-height: 48px;
+    background: var(--card); border: 1.5px solid var(--purple); color: var(--purple); border-radius: 10px; font-weight: 800;
+  }
+  .bill-own { font-size: 14px; color: var(--ink); font-weight: 800; margin: 2px 0; }
+  .bill-note { font-size: 13px; color: var(--sub); font-weight: 700; line-height: 1.6; }
+  /* 請求先チップ(複数タップ可)と請求先ごとの金額入力(2026-07-21改修A) */
+  .billto-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .billto-chip {
+    min-height: 44px; font-size: 15px; font-weight: 700; padding: 6px 10px;
+    background: var(--card); border: 1.5px solid var(--purple); color: var(--purple); border-radius: 10px;
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .billto-chip.on { border: 2px solid var(--purple); background: var(--purple); color: #FFF; font-weight: 800; }
+  .billto-chip.add { border-style: dashed; }
+  .bill-row-edit { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .bill-row-edit .nm { flex-shrink: 0; max-width: 42%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 800; color: var(--ink); }
+  .bill-row-edit .nm .paid-note { color: var(--purple); font-size: 12px; }
+  .bill-row-edit input { flex-grow: 1; min-width: 0; }
+  .bill-row-edit .rm { flex-shrink: 0; min-width: 44px; min-height: 44px; border: 1.5px solid var(--line); background: var(--card); color: var(--sub); border-radius: 10px; font-size: 15px; font-weight: 800; }
+  .bill-row-edit .rm.add-go { color: var(--purple); border-color: var(--purple); padding: 0 12px; }
+  /* 幽霊=CSV除外(2026-07-21改修D: 半透明+👻+文字の三重符号化) */
+  .entry-row.is-ghost { opacity: 0.55; }
+  .ghost-tag { font-weight: 800; }
+  .ghost-note { display: block; width: 100%; font-size: 13px; color: var(--sub); font-weight: 700; }
+  .ghost-btn {
+    display: block; width: 100%; min-height: 48px; font-size: 15px; font-weight: 800; text-align: left;
+    border-radius: 10px; border: 1.5px solid var(--line); background: var(--card); color: var(--ink);
+    padding: 10px 12px; margin-bottom: 4px;
+  }
+  .ghost-btn.on { border: 2px solid var(--purple); background: var(--purple-bg); color: var(--purple); }
+  /* 月ページ切替(2026-07-21改修C) */
+  .month-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .month-nav .nav {
+    flex-shrink: 0; min-height: 48px; font-size: 14px; font-weight: 800; padding: 8px 10px;
+    background: var(--card); border: 1.5px solid var(--ink); color: var(--ink); border-radius: 10px;
+  }
+  .month-nav .nav:disabled { color: var(--line); border-color: var(--line); cursor: default; }
+  .month-nav .cur { flex-grow: 1; text-align: center; font-size: 18px; font-weight: 800; }
+
+  /* 請求ビュー(紫系。未回収/回収済みは必ず文字でも明記) */
+  .bill-group { background: var(--card); border: 2px solid var(--purple); border-radius: 14px; padding: 12px; margin-bottom: 12px; }
+  .bill-group.paid { border: 1.5px solid var(--line); }
+  .bill-group .g-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; border-bottom: 2px solid var(--purple); padding-bottom: 4px; margin-bottom: 4px; }
+  .bill-group.paid .g-head { border-bottom: 1px solid var(--line); }
+  .bill-group .g-head .name { font-weight: 800; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bill-group .g-head .amt { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--purple); white-space: nowrap; }
+  .bill-group.paid .g-head .amt { color: var(--sub); }
+  /* 未回収明細の日付見出し(日付+その日の小計。文字+区切り線で日替わりを明示) */
+  .bill-date-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 10px 2px 2px; font-size: 14px; font-weight: 800; color: var(--sub); border-bottom: 1px dashed var(--line); }
+  .bill-date-head .d-amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bill-row2 { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .bill-row2:last-of-type { border-bottom: none; }
+  .bill-row2 .info { min-width: 0; flex-grow: 1; }
+  .bill-row2 .info .st { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; font-size: 15px; }
+  .bill-row2 .info .sub { color: var(--sub); font-size: 13px; font-weight: 700; }
+  .bill-row2 .amt { font-variant-numeric: tabular-nums; font-weight: 800; white-space: nowrap; }
+  /* 預かり残高(2026-07-21改修12・表示のみ)。青系+「預」バッジ+文字の三重符号化。立替の紫とは別枠だと分かる色 */
+  .dep-box { background: var(--blue-bg); border: 2px solid var(--blue); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; }
+  .dep-box .d-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-weight: 800; color: var(--blue); font-size: 15px; }
+  .dep-box .d-head .v { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .dep-box .d-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 14px; font-weight: 700; color: var(--ink); border-top: 1px dashed var(--blue); margin-top: 4px; padding-top: 4px; }
+  .dep-box .d-row .v { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .dep-box .d-note { font-size: 13px; font-weight: 700; color: var(--sub); line-height: 1.6; margin-top: 6px; }
+  .dep-badge {
+    display: inline-block; min-width: 22px; text-align: center; background: var(--blue); color: #FFF;
+    border-radius: 6px; font-size: 12px; font-weight: 800; padding: 0 5px; margin-right: 6px; line-height: 1.6;
+  }
+  /* 請求先ブロック内の預かり残高(未回収残と並べて出す) */
+  .dep-line { font-size: 13px; font-weight: 800; color: var(--blue); background: var(--blue-bg); border: 1px solid var(--blue); border-radius: 8px; padding: 4px 8px; margin: 4px 0 2px; line-height: 1.6; }
+  .dep-line .v { font-variant-numeric: tabular-nums; }
+  .paid-fold {
+    width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center;
+    background: var(--card); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12px;
+    font-size: 15px; font-weight: 700; color: var(--sub); margin-bottom: 12px; min-height: 48px;
+  }
+
+  /* フッター */
+  .footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 12px 14px; background: var(--card); border-top: 2px solid var(--ink); }
+  .footer-inner { max-width: 448px; margin: 0 auto; }
+  .footer button {
+    width: 100%; padding: 14px; min-height: 54px; background: var(--card);
+    border: 2px solid var(--ink); color: var(--ink); border-radius: 12px;
+    font-size: 16px; font-weight: 800;
+  }
+
+  @keyframes stampIn {
+    0% { transform: scale(2.4) rotate(-22deg); opacity: 0; }
+    55% { transform: scale(0.92) rotate(-5deg); opacity: 1; }
+    75% { transform: scale(1.08) rotate(-10deg); opacity: 1; }
+    100% { transform: scale(1) rotate(-8deg); opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stamp-mark { animation: none; transform: rotate(-8deg); }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="header">
+    <h1>経理台帳</h1>
+    <div class="header-btns">
+      <button class="chip-btn" data-act="open-clients">取引先</button>
+      <button class="chip-btn" data-act="open-bills">請求</button>
+      <button class="chip-btn" data-act="open-settings">設定</button>
+    </div>
+  </header>
+
+  <div id="saveBar"></div>
+  <div id="summary"></div>
+  <div id="notices"></div>
+
+  <!-- 手入力の入り口は2つ(2026-07-21改修13-10 ユーザー指示):
+       レシート手入力=まっさらな通常の経費 / 回収を記録=回収前提の値が入った状態で開く -->
+  <div class="entry-btns">
+    <button class="btn btn-primary" data-act="add-manual">レシート手入力</button>
+    <button class="btn btn-collect" data-act="add-collect">💴 回収を記録</button>
+  </div>
+  <button class="btn btn-outline-ai" data-act="toggle-import">読み取り結果を貼り付けて取り込み</button>
+  <div id="importPanel"></div>
+
+  <div id="bulkArea"></div>
+  <div id="pendings"></div>
+  <div id="filters"></div>
+  <div id="breakdown"></div>
+  <div id="ledger"></div>
+</div>
+
+<div id="pageLayer"></div>
+<div id="csvLayer"></div>
+<div id="footer"></div>
+<!-- 店名の入力候補(2026-07-21 ユーザー指示): ブラウザ標準のdatalist。render時に1個だけ生成し、全店名入力欄で共有する -->
+<div id="storeDatalist"></div>
+<!-- 請求先の入力候補(2026-07-21改修11-3): 取引先リスト+過去の請求先(bills[].to)。render時に1個だけ生成し共有する -->
+<div id="clientDatalist"></div>
+
+<script>
+"use strict";
+
+// ---------- 定数 ----------
+var STORAGE_KEY = "keiri-ledger-v1";
+var BACKUP_KEY = "keiri-ledger-v1-backup";
+// 並び順: よく使う会議費・接待交際費を先頭に(保存データ・CSV・取り込み判定は indexOf での「含まれるか」チェックのみで、順序に依存しない)
+var CATEGORIES = [
+  "会議費", "接待交際費",
+  "消耗品費", "通信費", "旅費交通費",
+  "新聞図書費", "広告宣伝費", "外注工賃", "荷造運賃", "水道光熱費",
+  "地代家賃", "修繕費", "仕入", "雑費", "事業主貸(私用)"
+];
+var PAYMENTS = ["現金", "クレジットカード", "電子マネー", "QRコード決済", "口座振替"];
+// 「レシート手入力」の初期値(2026-07-21改修13-4)。
+// addManual() の新規カードと isBlankManualCard() の「まっさら」判定で同じ値を使う(食い違い防止)
+var MANUAL_NEW = { category: "消耗品費", payment: "現金", persons: "1" };
+
+// チャットへのお願い文(2026-07-21 ユーザー指示で「質問なし・CSVのみ」に全面更新)
+// レシートはまとめて送り人数はアプリで調整する運用のため、確認の質問・合計の要約は一切させない。
+// 列の意味はパーサ(importLines)の貼り付け形式に合わせる: 8列目=請求分・9列目=請求先・10列目=人数・11列目=幽霊
+// 経理\docs\他AI用お願い文.md の枠内文と同じルール(片方を直すときはもう片方も揃える)
+var ASK_TEXT = [
+  "あなたは日本の個人事業主の経理アシスタントです。添付のレシート・領収書・Suicaやクレジットカード履歴のスクショを読み取り、経理アプリ取り込み用のCSV行に変換してください。",
+  "",
+  "【出力の絶対ルール】",
+  "・返答はCSVのコードブロックのみ。前置き・説明・合計の要約・確認の質問・特記事項の伺いは一切書かない",
+  "・読み取れない画像があった場合だけ、最後に1行「○枚目は読み取れませんでした」と書く",
+  "・1行=1件、カンマ区切り、ヘッダー行なし: 日付,店名,金額,勘定科目,支払方法,取引先,メモ,請求分,請求先,人数,幽霊(8〜11列目は該当するときだけ。無い列はカンマだけで位置を揃える。通常は7列でよい)",
+  "",
+  "【値のルール】",
+  "・日付は YYYY-MM-DD(読めなければ今日)",
+  "・金額は税込合計の整数(円)。¥やカンマは付けない",
+  "・勘定科目は次の15個だけから選ぶ: " + CATEGORIES.join("、"),
+  "・支払方法は次の5個だけ: " + PAYMENTS.join("、") + "(レシートの記載を根拠に。不明なら現金)",
+  "・飲食の科目は5,000円ルール: 1人あたり5,000円以下=会議費、超=接待交際費(判定は 金額≦5000×人数)。人数はレシートから読めたときだけ10列目とメモ「○名」に入れ、読めなければ10列目は空・総額≦5,000円なら会議費/超なら接待交際費とする(アプリで人数を入れれば自動で判定し直される)。人数や相手を私に質問しない",
+  "・Suica履歴は1乗車=1行、科目=旅費交通費、店名=「Suica 出発駅→到着駅」",
+  "・同じ会計の店レシートとカード利用控えは1件に統合(二重計上防止)",
+  "・事業か私用か迷うものは 事業主貸(私用)。取引先が分からなければ空欄でよい",
+  "・会社宛・会社用途の領収書は 8列目=全額・9列目=会社名・メモ「会社経費」",
+  "・「割り勘」「立て替え」と伝えたときは 8列目=相手負担の合計・9列目=相手名(複数は A社/B社 のように半角/区切り。金額は自動で均等配分される)",
+  "・11列目=幽霊フラグ。1 を入れた行はアプリで「幽霊」(確定申告用CSVに出さない行)として取り込まれる",
+  "・PayPay等の「送金を受け取った」スクショ=立替金の回収。金額はマイナス(受け取った額)・店名は「○○さんから回収」・6列目=送金者名・メモ「立替回収」・11列目=1(幽霊) で出力する。回収は経費でも収入でもないため確定申告用CSVには出さない",
+  "　例: 2026-07-21,山田太郎さんから回収,-3452,会議費,QRコード決済,山田太郎,立替回収,,,,1"
+].join("\n");
+
+// ---------- 状態 ----------
+var state = {
+  entries: [],
+  rules: [],
+  pendings: [],
+  clientList: [],
+  editDraft: null,
+  lastBackup: "",
+  lastSavedAt: "", // 最終保存日時 "YYYY-MM-DD HH:MM"(2026-07-21 ユーザー指示: 保存状態の常時表示用。persistNow成功時に更新)
+  deletedLog: []   // 削除ログ(2026-07-20追加): 記帳を削除した記録。原本写真の整理(削除済みフォルダへの移動)に使う
+};
+var ui = {
+  loaded: false,
+  error: "",
+  saveError: "",
+  info: "",
+  importOpen: false,
+  importText: "",
+  bulkConfirm: false,
+  collapsed: {},
+  expandedId: null,
+  stampedId: null,
+  stampSnapshot: null,   // 承認アニメ表示用の見た目だけのカード(記帳は確定済み)
+  negConfirmId: null,    // マイナス金額(返金・値引き)の確認中カードid
+  negConfirmAmt: null,   // 確認パネルに表示した金額(確定時にずれていないか再検証する)
+  negConfirmBill: 0,     // 確認パネルに表示した「消える請求(立替)の合計」(2026-07-21改修13-1)
+  editNeg: null,         // 編集フォームのマイナス保存の確認中 {amt, sum}(2026-07-21改修13-6)
+  viewYear: "all",
+  viewClients: [],       // 取引先フィルタ(2026-07-21改修C: 複数選択。空=すべて)
+  ledgerMonth: "",       // 台帳の月ページ(2026-07-21改修C。空=データのある最新月)
+  billsMonth: "",        // 請求ビューの月ページ(同上)
+  billsCollectConfirm: null, // 月まとめ回収の確認中 {type:"collect"|"cancel", month}
+  billOpen: {},          // 「割り勘・立替」欄の開閉(キー: pending id / "__draft__")
+  billsPaidOpen: false,  // 請求ビューの「回収済み」折りたたみ
+  page: "",          // "" | "clients" | "settings" | "bills"
+  csvOpen: false,
+  csvText: "",
+  copyMsg: "",
+  selfTestMsg: "",
+  jsonMsg: "",
+  logMsg: "",            // 削除ログ操作の結果表示
+  logClearConfirm: false, // 削除ログのクリア確認中
+  newClientName: "",
+  // 保存状態の常時表示(2026-07-21 ユーザー指示)
+  dirty: false,          // 未保存の変更あり(markDirtyでON・保存成功でOFF)
+  justSavedMsg: "",      // 手動保存ボタンの「保存しました HH:MM」表示(次の変更で消える)
+  savedThisSession: false, // このセッションで保存済みか(表示ラベル「前回保存」→「最終保存」の切替)
+  noSavedData: false     // 起動時に保存データが空だった(データ消失の検知表示)
+};
+
+// ---------- ユーティリティ ----------
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function normalize(s) { return String(s || "").toLowerCase().replace(/[\s　]/g, ""); }
+function todayStr() {
+  var d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+// 保存日時の記録用 "YYYY-MM-DD HH:MM" と表示用 "M/D HH:MM"(2026-07-21 保存状態表示)
+function nowStamp() {
+  var d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0")
+    + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+function stampDisp(s) {
+  var m = /^\d{4}-(\d{2})-(\d{2}) (\d{2}:\d{2})$/.exec(String(s || ""));
+  return m ? Number(m[1]) + "/" + Number(m[2]) + " " + m[3] : String(s || "");
+}
+function yen(n) { return "¥" + Number(n || 0).toLocaleString("ja-JP"); }
+// 表示用: マイナスは会計慣行の「△」表記(例: -500 → △500)
+function yenDisp(n) {
+  n = Number(n || 0);
+  return n < 0 ? "△" + Math.abs(n).toLocaleString("ja-JP") : "¥" + n.toLocaleString("ja-JP");
+}
+function monthLabel(ym) {
+  var p = ym.split("-");
+  return p[0] + "年" + Number(p[1]) + "月";
+}
+function newId() { return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8); }
+
+// 金額文字列 → 整数円。整数にならなければ NaN
+// NFKC正規化で全角数字「５４０」・全角マイナス「−」も半角に直してから解釈する
+// マイナスは返金・値引きとして許可(承認時に確認あり)
+// 桁が大きすぎる値(安全に扱える整数の範囲外)も NaN にする(2026-07-21改修13-8)。
+// 読み込み側(sanitizeEntry)は Number.isSafeInteger で弾くため、ここを素通しにすると
+// 「記帳できたのに再読み込みで黙って消える」記帳ができてしまう
+function parseAmount(v) {
+  var s = String(v == null ? "" : v).normalize("NFKC").trim().replace(/[¥￥,\s円]/g, "");
+  if (s === "") return NaN;
+  if (!/^-?\d+$/.test(s)) return NaN;
+  var n = Number(s);
+  if (!Number.isSafeInteger(n)) return NaN;
+  return n;
+}
+// 「数字だけれど桁が大きすぎる」入力かどうか(2026-07-21改修13-8)。
+// 文字混じり(NaN)と区別して、専用の案内を出すために使う
+function amountTooBig(v) {
+  var s = String(v == null ? "" : v).normalize("NFKC").trim().replace(/[¥￥,\s円]/g, "");
+  return /^-?\d+$/.test(s) && !Number.isSafeInteger(Number(s));
+}
+
+// 人数(2026-07-21追加): 整数1以上のみ許可(上限999)。
+// 0・マイナス・小数・文字・空欄などの不正値は 1 に補正する(旧データ補完と同じ方式)
+function parsePersons(v) {
+  var n = parseAmount(v);
+  if (isNaN(n) || n < 1) return 1;
+  if (n > 999) return 999;
+  return n;
+}
+// 幽霊フラグ(2026-07-21改修11-5): 取り込み11列目の値を真偽に直す。
+// 「1」「true」「○」「◯」「はい」だけをON扱いにし、それ以外(空欄・0・false・任意の文字)はOFF。
+// 旧CSVの11列目(回収状態「回収済み」「未回収」)が誤ってONにならないよう、完全一致のみ許可する
+function parseGhostFlag(v) {
+  var s = String(v == null ? "" : v).trim();
+  try { s = s.normalize("NFKC"); } catch (e) { /* 非対応環境ではそのまま */ }
+  s = s.toLowerCase();
+  return s === "1" || s === "true" || s === "○" || s === "◯" || s === "はい";
+}
+
+// 請求先ごとの安定色(2026-07-21改修11-6): 名前のハッシュから下のパレットを巡回して割り当てる。
+// 同じ名前なら常に同じ色(データを消しても復元しても変わらない)。
+// パレットは案5のコントラスト基準(白文字と7:1以上)を満たす濃色のみ。
+// 色だけに頼らず、頭文字+フルネームの文字を必ず併記する(三重符号化の原則)
+var CLIENT_COLORS = ["#0058A3", "#8A4B00", "#5B3E96", "#9A3412", "#005E56", "#8A2B6B"];
+function clientColor(name) {
+  var s = String(name || "");
+  if (!s || s === "(請求先なし)") return "#50565F"; // 請求先なしは補助色(--sub)固定
+  var h = 0;
+  for (var i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) % 1000000007;
+  }
+  return CLIENT_COLORS[h % CLIENT_COLORS.length];
+}
+// 色バッジ+名前(名前の文字は必ず表示する)
+function clientBadgeHtml(name) {
+  var s = String(name || "");
+  var head = (!s || s === "(請求先なし)") ? "—" : s.slice(0, 1);
+  return '<span class="client-badge" style="background:' + clientColor(s) + ';" aria-hidden="true">' + esc(head) + '</span>';
+}
+
+// メモへの「○名」自動追記(人数2以上のとき)。
+// 既に「数字+名」の表記(全角数字含む)があれば追記しない(手書きの記載を優先・重複防止)
+function appendPersonsMemo(memo, persons) {
+  var m = String(memo || "");
+  if (/[0-90-9]+\s*名/.test(m)) return m;
+  return m ? m + "・" + persons + "名" : persons + "名";
+}
+
+// ---------- 複数請求(bills 配列・2026-07-21改修A) ----------
+// 記帳1件の請求は bills = [{to(請求先名), amount(整数円・1以上), status("unpaid"=未回収/"paid"=回収済み), paidDate}] の配列。
+// 自分負担 = 総額 − billSum(bills)。整数の足し引きのみ(割り算・浮動小数点なし)
+function billSum(bills) {
+  var s = 0;
+  (Array.isArray(bills) ? bills : []).forEach(function (b) {
+    var n = Number(b && b.amount);
+    if (Number.isSafeInteger(n) && n > 0) s += n;
+  });
+  return s;
+}
+// 請求先名に半角「/」は使えない(CSV往復の「/」区切りが壊れるため)。全角「/」へ置換する
+function cleanBillName(s) {
+  return String(s == null ? "" : s).trim().replace(/\//g, "／");
+}
+// 入力中の bills(金額は編集用の文字列)を検証して整数化する。戻り値 {bills, error}。
+// 空欄・0円の行は「請求しない」として除外。整数でない・負の値、Σ請求分>総額 はエラーで止める(黙って丸めない)
+// マイナスにすると消えてしまう請求(立替)の合計と件数(2026-07-21改修13-1)。
+// 「±」1回で請求が黙って消えないよう、承認・保存の前にこの金額を確認パネルで見せる
+function billsRiskSum(obj) {
+  var sum = 0, cnt = 0, names = [];
+  (Array.isArray(obj && obj.bills) ? obj.bills : []).forEach(function (b) {
+    var n = parseAmount(b && b.amount);
+    if (isNaN(n) || n <= 0) return;
+    sum += n;
+    cnt++;
+    var nm = cleanBillName(b.to);
+    if (nm && names.indexOf(nm) === -1) names.push(nm);
+  });
+  return { sum: sum, count: cnt, names: names };
+}
+function parseBillsInput(obj, amt) {
+  // マイナス記帳(返金・値引き・立替の回収)は請求なし固定。
+  // 請求が入っていた場合に黙って捨てないよう、呼び出し側(approveOne / saveEdit)で
+  // billsRiskSum() を使った確認パネルを必ず挟む(2026-07-21改修13-1)
+  if (amt < 0) return { bills: [], error: "" };
+  var out = [], sum = 0;
+  var src = Array.isArray(obj.bills) ? obj.bills : [];
+  for (var i = 0; i < src.length; i++) {
+    var b = src[i];
+    var raw = String(b.amount == null ? "" : b.amount).trim();
+    if (raw === "") continue;
+    var n = parseAmount(raw);
+    if (isNaN(n)) return { bills: [], error: "請求分は整数(小数点なしの円)で入力してください。例: 4333" };
+    if (n < 0) return { bills: [], error: "請求分にマイナスは入れられません(返品・値引きは金額欄のマイナス記帳を使ってください)。" };
+    if (n === 0) continue;
+    var st = b.status === "paid" ? "paid" : "unpaid";
+    out.push({
+      to: cleanBillName(b.to),
+      amount: n,
+      status: st,
+      paidDate: st === "paid"
+        ? (/^\d{4}-\d{2}-\d{2}$/.test(String(b.paidDate || "")) ? String(b.paidDate) : todayStr())
+        : "",
+      // 自動反映の印は編集の往復で失わないよう引き継ぐ(2026-07-21改修11-7)。
+      // 落とすと「自動で回収済み」が「手動で回収済み」に化け、回収額が別の請求へ二重に割り当てられてしまう
+      paidBy: typeof b.paidBy === "string" ? b.paidBy : "",
+      autoSkip: b.autoSkip === true,
+      paidAmt: (function (v) {
+        var x = Number(v);
+        if (!Number.isSafeInteger(x) || x < 0) return 0;
+        return x > n ? n : x;
+      })(b.paidAmt),
+      // 手動で「回収済みにする」を押したぶん(2026-07-21改修13-3)。編集の往復で失わないよう引き継ぐ
+      paidManual: (function (v) {
+        var x = Number(v);
+        if (!Number.isSafeInteger(x) || x < 0) return 0;
+        return x > n ? n : x;
+      })(b.paidManual)
+    });
+    sum += n;
+  }
+  if (sum > amt) {
+    return { bills: [], error: "請求分の合計(" + yen(sum) + ")が総額(" + yen(amt) + ")を超えています。請求先ごとの金額を直してから承認してください。" };
+  }
+  return { bills: out, error: "" };
+}
+// 承認待ちカード・編集ドラフトの移行(2026-07-21改修A)。
+// 旧形式(billAmount/billTo)の下書きは bills 配列(金額は編集用の文字列)へ自動変換する
+function migratePendingBills(p) {
+  if (!Array.isArray(p.bills)) {
+    var b = parseAmount(p.billAmount);
+    p.bills = (!isNaN(b) && b > 0) ? [{ to: cleanBillName(p.billTo), amount: String(b), status: "unpaid", paidDate: "" }] : [];
+  } else {
+    p.bills = p.bills.filter(function (x) { return x && typeof x === "object"; })
+      .map(function (x) {
+        return {
+          to: cleanBillName(x.to),
+          amount: String(x.amount == null ? "" : x.amount),
+          status: x.status === "paid" ? "paid" : "unpaid",
+          paidDate: typeof x.paidDate === "string" ? x.paidDate : "",
+          paidBy: typeof x.paidBy === "string" ? x.paidBy : "",
+          autoSkip: x.autoSkip === true,
+          paidAmt: Number(x.paidAmt) || 0,
+          paidManual: Number(x.paidManual) || 0
+        };
+      });
+  }
+  delete p.billAmount;
+  delete p.billTo;
+  if (typeof p.billToNew !== "string") p.billToNew = "";
+  p.billToAdding = p.billToAdding === true;
+  p.ghost = p.ghost === true;             // 幽霊(CSV除外)の下書き値(2026-07-21改修11-4/11-5)
+  // 立替の回収として記録中(2026-07-21改修13-11で collectMode から collect に一本化。
+  // 前の版で保存された承認待ちカードの collectMode も引き継ぐ)
+  p.collect = p.collect === true || p.collectMode === true;
+  delete p.collectMode;
+  p.catAuto = p.catAuto === true;   // 自動セットされた会食科目(学習除外の印)
+  p.catManual = p.catManual === true; // 手動で科目を選んだ(以降は自動セットしない)
+  return p;
+}
+// 旧形式ドラフトの回収状態を、変換済みの記帳(entries)から引き継ぐ
+function syncDraftBillsFromEntry(wasOld) {
+  if (!wasOld || !state.editDraft) return;
+  for (var i = 0; i < state.entries.length; i++) {
+    if (state.entries[i].id === String(state.editDraft.id)) {
+      state.editDraft.bills = state.entries[i].bills.map(function (b) {
+        return { to: b.to, amount: String(b.amount), status: b.status, paidDate: b.paidDate, paidBy: b.paidBy || "", autoSkip: b.autoSkip === true, paidAmt: Number(b.paidAmt) || 0, paidManual: Number(b.paidManual) || 0 };
+      });
+      break;
+    }
+  }
+}
+
+// ---------- 保存層 ----------
+var saveTimer = null;
+function markDirty() {
+  if (!ui.loaded) return;
+  // 回収行の自動反映(2026-07-21改修11-7): データが変わるたびにゼロから計算し直す(冪等なので二重反映しない)。
+  // ここに置くことで、承認・編集・削除・幽霊解除・手動回収など、どの経路で変わっても取りこぼさない
+  applyCollections();
+  ui.dirty = true;        // 未保存の変更あり(2026-07-21 保存状態表示)
+  ui.justSavedMsg = "";   // 「保存しました」表示は次の変更で消す
+  renderSaveBar();
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(persistNow, 500);
+}
+// manual=true は手動の「保存」ボタン経由(押した感のフィードバックを出す)
+function persistNow(manual) {
+  saveTimer = null;
+  var prevStamp = state.lastSavedAt;
+  try {
+    var prev = localStorage.getItem(STORAGE_KEY);
+    if (prev !== null) {
+      localStorage.setItem(BACKUP_KEY, prev);
+    }
+    // 最終保存時刻は保存データにも含める(stringifyの前に更新。失敗時はcatchで戻す)
+    state.lastSavedAt = nowStamp();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    ui.dirty = false;
+    ui.savedThisSession = true;
+    ui.noSavedData = false; // 保存できた=データが存在する状態になったので消失警告を下げる
+    if (manual === true) {
+      ui.justSavedMsg = "保存しました " + state.lastSavedAt.slice(11);
+      // 押した感: 対応端末では短い振動(非対応でも何も起きない)
+      try { if (navigator.vibrate) navigator.vibrate(30); } catch (e2) { /* 何もしない */ }
+    }
+    if (ui.saveError) { ui.saveError = ""; renderNotices(); }
+    renderSaveBar();
+    return true;
+  } catch (e) {
+    state.lastSavedAt = prevStamp; // 保存できていないので時刻を戻す
+    ui.saveError = "自動保存に失敗しました。データは画面に残っています。ブラウザの空き容量が無い可能性があります。下のボタンで再保存を試すか、設定ページのJSON控えを取ってください。";
+    renderNotices();
+    renderSaveBar();
+    return false;
+  }
+}
+// 手動保存(2026-07-21 ユーザー指示): デバウンス待ちを止めて即時保存
+function saveNow() {
+  if (saveTimer) clearTimeout(saveTimer);
+  persistNow(true);
+}
+function retrySave() {
+  if (persistNow()) {
+    ui.info = "再保存できました。";
+    renderNotices();
+  }
+}
+// 画面を離れる時、保存待ち(500msデバウンス中)があれば即時保存する
+// beforeunload はモバイルで発火しないことが多いため visibilitychange + pagehide を使う
+function flushSave() {
+  if (saveTimer) persistNow();
+}
+document.addEventListener("visibilitychange", function () {
+  if (document.visibilityState === "hidden") flushSave();
+});
+window.addEventListener("pagehide", flushSave);
+function loadState() {
+  var raw = null, usedBackup = false;
+  try { raw = localStorage.getItem(STORAGE_KEY); } catch (e) { raw = null; }
+  var d = null;
+  if (raw !== null) {
+    try { d = JSON.parse(raw); } catch (e) { d = null; }
+  }
+  if (d === null) {
+    var braw = null;
+    try { braw = localStorage.getItem(BACKUP_KEY); } catch (e) { braw = null; }
+    if (braw !== null) {
+      try { d = JSON.parse(braw); usedBackup = true; } catch (e) { d = null; }
+    }
+    // 保存データが空(本体も控えも無い)= 初回起動 or データ消失。ユーザーが即座に気づけるよう目立つ表示を出す(2026-07-21)
+    if (raw === null && braw === null) {
+      ui.noSavedData = true;
+    }
+  }
+  if (d && typeof d === "object") {
+    // 起動時の読み込みにもJSON復元と同じ検証をかける(localStorageが直接書き換えられていても
+    // ¥NaN 表示やCSVへの不正値流出が起きないように)。不正な記帳行は読み飛ばして件数を案内する。
+    // JSONごと壊れている場合の1世代前バックアップ(-backupキー)からの復旧は、従来どおり上のフォールバックで行う
+    var badRows = 0;
+    state.entries = (Array.isArray(d.entries) ? d.entries : []).map(sanitizeEntry).filter(function (x) {
+      if (x === null) badRows++;
+      return x !== null;
+    });
+    // 学習ルールにも importJson と同等の検査をかける(型チェックだけでなく、
+    // key の再構築・科目の15種チェック・count の整数化まで行う)。
+    // key の欠けたルールが findRule で例外を起こし、取り込みが無言で止まるのを防ぐ
+    state.rules = Array.isArray(d.rules)
+      ? d.rules.filter(function (r) { return r && typeof r === "object" && typeof r.store === "string" && typeof r.category === "string"; })
+          .map(function (r) {
+            return {
+              key: normalize(r.store),
+              store: r.store,
+              category: CATEGORIES.indexOf(r.category) !== -1 ? r.category : "雑費",
+              count: Number.isSafeInteger(Number(r.count)) ? Number(r.count) : 1
+            };
+          })
+      : [];
+    state.pendings = Array.isArray(d.pendings)
+      ? d.pendings.filter(function (p) { return p && typeof p === "object"; }).map(migratePendingBills)
+      : [];
+    state.clientList = sanitizeClientList(d.clientList);
+    state.editDraft = (d.editDraft && typeof d.editDraft === "object") ? d.editDraft : null;
+    if (state.editDraft) {
+      var draftWasOld = !Array.isArray(state.editDraft.bills);
+      migratePendingBills(state.editDraft);
+      syncDraftBillsFromEntry(draftWasOld);
+    }
+    state.lastBackup = typeof d.lastBackup === "string" ? d.lastBackup : "";
+    // 最終保存時刻(2026-07-21追加)。旧データ(フィールドなし)は空文字で補完する
+    state.lastSavedAt = typeof d.lastSavedAt === "string" ? d.lastSavedAt : "";
+    // 削除ログ(2026-07-20追加)。旧データ(フィールドなし)は空配列で補完する
+    state.deletedLog = sanitizeDeletedLog(d.deletedLog);
+    // idを文字列にそろえる(旧データは数値idの可能性がある)
+    state.entries.forEach(function (e) { e.id = String(e.id); });
+    state.pendings.forEach(function (p) { p.id = String(p.id); });
+    if (state.editDraft) {
+      state.editDraft.id = String(state.editDraft.id);
+      ui.expandedId = state.editDraft.id;
+    }
+    if (usedBackup && raw !== null) {
+      ui.info = "保存データが壊れていたため、1つ前の控え(バックアップ)から復元しました。";
+    }
+    if (badRows > 0) {
+      ui.info = (ui.info ? ui.info + "\n" : "")
+        + "保存データに金額などが不正な記帳が " + badRows + " 件あったため読み飛ばしました。心当たりがなければ、設定ページのJSON控えから復元してください。";
+    }
+  }
+  ui.loaded = true;
+  // 起動時にも回収行の自動反映を計算し直す(2026-07-21改修11-7)。
+  // 保存データには計算結果(paidBy付きの回収済み)が入っているが、毎回ゼロから計算し直すので
+  // 再読み込みで二重に差し引かれることはない
+  applyCollections();
+}
+
+// ---------- 学習ルール ----------
+function upsertRule(list, store, category) {
+  var key = normalize(store);
+  if (!key) return list;
+  var next = list.slice();
+  var i = -1;
+  for (var k = 0; k < next.length; k++) { if (next[k].key === key) { i = k; break; } }
+  if (i >= 0) {
+    next[i] = { key: next[i].key, store: next[i].store, category: category, count: next[i].count + 1 };
+  } else {
+    next.push({ key: key, store: store, category: category, count: 1 });
+  }
+  return next;
+}
+function findRule(store) {
+  var key = normalize(store);
+  if (!key) return null;
+  for (var i = 0; i < state.rules.length; i++) {
+    if (state.rules[i].key === key) return state.rules[i];
+  }
+  for (var j = 0; j < state.rules.length; j++) {
+    var rk = state.rules[j].key;
+    if (key.indexOf(rk) !== -1 || rk.indexOf(key) !== -1) return state.rules[j];
+  }
+  return null;
+}
+
+// ---------- 仕分けチップ ----------
+// 先頭固定2つ(会食系)+ 学習ルールの使用回数(count)を科目別に集計した上位3科目。
+// 並びはアプリを開いてから最初の描画で1回だけ決めて固定する
+// (承認のたびに入れ替わると、位置で覚えた指が誤タップするため)
+var FIXED_CHIPS = [
+  { cat: "会議費", sub: "打合せ飲食 〜5,000円/人・自分基準" },
+  { cat: "接待交際費", sub: "会食 5,000円/人超" }
+];
+var chipListCache = null;
+function getChipList() {
+  if (chipListCache) return chipListCache;
+  var countByCat = {};
+  state.rules.forEach(function (r) {
+    var n = Number(r && r.count);
+    countByCat[r.category] = (countByCat[r.category] || 0) + (Number.isSafeInteger(n) && n > 0 ? n : 0);
+  });
+  var extras = CATEGORIES.filter(function (c) {
+    return c !== "会議費" && c !== "接待交際費" && (countByCat[c] || 0) > 0;
+  }).sort(function (a, b) {
+    var d = (countByCat[b] || 0) - (countByCat[a] || 0);
+    return d !== 0 ? d : CATEGORIES.indexOf(a) - CATEGORIES.indexOf(b);
+  }).slice(0, 3).map(function (c) { return { cat: c, sub: "" }; });
+  chipListCache = FIXED_CHIPS.concat(extras);
+  return chipListCache;
+}
+// ---------- 科目の三重符号化(2026-07-21 案5デザイン) ----------
+// すべての科目の区別を「色+形+文字」の3つ同時で表す(色が見えなくても迷わない)。
+// 会議費=青● / 接待交際費=橙■ / その他13科目=紫◆+略字2文字
+var CAT_ABBR = {
+  "会議費": "会議", "接待交際費": "接待", "消耗品費": "消耗", "通信費": "通信",
+  "旅費交通費": "交通", "新聞図書費": "図書", "広告宣伝費": "広告", "外注工賃": "外注",
+  "荷造運賃": "荷造", "水道光熱費": "光熱", "地代家賃": "家賃", "修繕費": "修繕",
+  "仕入": "仕入", "雑費": "雑費", "事業主貸(私用)": "私用"
+};
+function catInfo(cat) {
+  if (cat === "会議費") return { cls: "kaigi", shape: "●" };
+  if (cat === "接待交際費") return { cls: "settai", shape: "■" };
+  return { cls: "sonota", shape: "◆" };
+}
+// 科目タグ(2px枠+薄色地。集計などで使用)
+function catTagHtml(cat) {
+  var i = catInfo(cat);
+  return '<span class="cat-tag cat-' + i.cls + '"><span class="shape">' + i.shape + '</span>' + esc(cat) + '</span>';
+}
+// 台帳行頭の48pxスタンプ(形+略字)
+function catStampHtml(cat) {
+  var i = catInfo(cat);
+  return '<span class="stamp ' + i.cls + '" aria-hidden="true"><span class="sh">' + i.shape + '</span><span class="ab">' + esc(CAT_ABBR[cat] || "雑費") + '</span></span>';
+}
+// 科目プルダウン: 選択肢の表示にも形(●■◆)を付ける(値は正式な科目名のまま)
+function catSelectHtml(selected, attr) {
+  return '<select ' + attr + '>' + CATEGORIES.map(function (c) {
+    return '<option value="' + esc(c) + '"' + (c === selected ? " selected" : "") + '>' + catInfo(c).shape + ' ' + esc(c) + '</option>';
+  }).join("") + '</select>';
+}
+// 科目に応じた select の色クラス(会議費=青・接待交際費=橙・その他=既定)
+function catClassAttr(cat) {
+  if (cat === "会議費") return ' class="cat-kaigi"';
+  if (cat === "接待交際費") return ' class="cat-settai"';
+  return "";
+}
+
+// ---------- 取引先 ----------
+function addClientToList(name) {
+  var n = String(name || "").trim();
+  if (!n) return;
+  if (state.clientList.indexOf(n) === -1) {
+    state.clientList.push(n);
+    state.clientList.sort();
+  }
+}
+// 外部から来た取引先リストを「文字列のみ」に整形する(許可リスト方式)。
+// オブジェクト・数値・null は捨てる(String()で文字列化すると「[object Object]」等の消せない候補になるため)
+function sanitizeClientList(list) {
+  var out = [];
+  (Array.isArray(list) ? list : []).forEach(function (c) {
+    if (typeof c !== "string") return;
+    var n = c.trim();
+    if (n && out.indexOf(n) === -1) out.push(n);
+  });
+  out.sort();
+  return out;
+}
+
+// ---------- 承認待ちの操作 ----------
+// 手入力カードが「まっさら」かどうか(2026-07-21改修12-1)。
+// 店名・金額が空でも、回収モード・幽霊ON・請求先あり・取引先ありのカードは「まっさら」ではない。
+// これを空カードとして使い回すと、新しい手入力が勝手に立替・回収扱いで始まってしまう
+// 日付・科目・支払方法・人数も見る(2026-07-21改修13-4)。
+// これらが前のカードのまま残ると、当日のつもりが去年の日付で記帳されるなどの誤記帳につながる
+function isBlankManualCard(x) {
+  return x && x.source === "manual"
+    && !String(x.store || "").trim()
+    && !String(x.amount || "").trim()
+    && !String(x.client || "").trim()
+    && !(Array.isArray(x.bills) && x.bills.length > 0)
+    && x.ghost !== true
+    && x.collect !== true
+    && !String(x.memo || "").trim()
+    && String(x.date || "") === todayStr()
+    && x.category === MANUAL_NEW.category
+    && x.payment === MANUAL_NEW.payment
+    && String(x.persons || "") === MANUAL_NEW.persons;
+}
+function addManual() {
+  var empty = null;
+  for (var i = 0; i < state.pendings.length; i++) {
+    if (isBlankManualCard(state.pendings[i])) { empty = state.pendings[i]; break; }
+  }
+  if (empty) {
+    ui.collapsed[empty.id] = false;
+    delete ui.billOpen[empty.id]; // 「割り勘・立替」欄は閉じた状態に戻す(既定は閉)
+    ui.error = "空の手入力カードがすでにあります。そちらに記入して承認するか、「破棄する」で消してください。";
+    render();
+    return;
+  }
+  ui.error = "";
+  // 新しい手入力カードは必ず「ふつうの自分の経費」で始める(2026-07-21改修12-1)。
+  // 請求分0・請求先なし・取引先なし・幽霊OFF・回収モードOFF・通常科目・1名・当日日付・現金
+  var nid = newId();
+  state.pendings.push({
+    id: nid, date: todayStr(), store: "", amount: "",
+    payment: MANUAL_NEW.payment, client: "", memo: "",
+    category: MANUAL_NEW.category, aiCategory: MANUAL_NEW.category,
+    source: "manual", clientAdding: false,
+    bills: [], billToAdding: false, billToNew: "",
+    catAuto: false, catManual: false,
+    persons: MANUAL_NEW.persons, personsAdding: false,
+    ghost: false, collect: false
+  });
+  ui.collapsed[nid] = false;   // 開いた状態で出す
+  delete ui.billOpen[nid];     // 「割り勘・立替」欄は閉じた状態から(既定は閉)
+  markDirty();
+  render();
+}
+// 「回収を記録」の入り口(2026-07-21改修13-10 ユーザー指示)。
+// レシート手入力と分け、押した時点で**回収の記録に必要な値が入った状態**でカードを開く:
+// 回収モードON・幽霊(CSV除外)ON・メモ「立替回収」・金額は先頭に「-」を置いた状態(±がマイナス側)。
+// あとは受け取った額の数字と相手(取引先)を入れるだけで承認できる。
+// 幽霊は後から解除できる(カードの「👻」ボタン)。
+// 判定はレシート手入力側(isBlankManualCard)と対称にする(2026-07-21改修13-11・検証10 問題2の修正)。
+// 幽霊(ghost)も既定値どおりかを見る。ここを見ていないと、幽霊をOFFにした古いカードを
+// 「空の回収カード」として使い回してしまい、既定値(幽霊ON)で開かなくなる
+function isBlankCollectCard(x) {
+  var amt = String(x && x.amount || "").trim();
+  return x && x.source === "manual"
+    && x.collect === true
+    && x.ghost === true
+    && !String(x.store || "").trim()
+    && (amt === "" || amt === "-")
+    && !String(x.client || "").trim()
+    && !(Array.isArray(x.bills) && x.bills.length > 0)
+    && String(x.memo || "").trim() === "立替回収"
+    && String(x.date || "") === todayStr()
+    && x.category === MANUAL_NEW.category
+    && x.payment === MANUAL_NEW.payment
+    && String(x.persons || "") === MANUAL_NEW.persons;
+}
+function addCollect() {
+  var empty = null;
+  for (var i = 0; i < state.pendings.length; i++) {
+    if (isBlankCollectCard(state.pendings[i])) { empty = state.pendings[i]; break; }
+  }
+  if (empty) {
+    ui.collapsed[empty.id] = false;
+    ui.error = "空の回収カードがすでにあります。そちらに記入して承認するか、「破棄する」で消してください。";
+    render();
+    focusAmount(empty.id);
+    return;
+  }
+  ui.error = "";
+  var nid = newId();
+  state.pendings.push({
+    id: nid, date: todayStr(), store: "", amount: "-",
+    payment: MANUAL_NEW.payment, client: "", memo: "立替回収",
+    category: MANUAL_NEW.category, aiCategory: MANUAL_NEW.category,
+    source: "manual", clientAdding: false,
+    bills: [], billToAdding: false, billToNew: "",
+    catAuto: false, catManual: false,
+    persons: MANUAL_NEW.persons, personsAdding: false,
+    ghost: true, collect: true
+  });
+  ui.collapsed[nid] = false;
+  delete ui.billOpen[nid];
+  markDirty();
+  render();
+  focusAmount(nid);  // 金額欄にカーソル(「-」の後ろから数字を打てる)
+}
+// 金額欄にカーソルを置く(末尾から続けて入力できるようにする)
+function focusAmount(id) {
+  try {
+    var el = document.querySelector('[data-input="pending"][data-field="amount"][data-id="' + id + '"]');
+    if (el && el.focus) { el.focus(); if (el.setSelectionRange) el.setSelectionRange(el.value.length, el.value.length); }
+  } catch (e) { /* 取得できなくても動作に影響しない */ }
+}
+// ※ 2026-07-21改修13-10: カードの途中で回収モードへ切り替える collectModeOn() は廃止しました。
+//    回収は画面上の「💴 回収を記録」から始めます(入り口で決める方式)。
+//    貼り付け取り込み側の回収判定(マイナス+幽霊)は従来どおり importLines() が行います。
+function updPending(id, field, value) {
+  for (var i = 0; i < state.pendings.length; i++) {
+    if (state.pendings[i].id === id) { state.pendings[i][field] = value; break; }
+  }
+  markDirty();
+}
+function updPendingR(id, field, value) { updPending(id, field, value); render(); }
+function pendingClientSel(id, value) {
+  if (value === "__ADD__") {
+    updPending(id, "client", "");
+    updPending(id, "clientAdding", true);
+  } else {
+    updPending(id, "client", value);
+    updPending(id, "clientAdding", false);
+  }
+  render();
+}
+function foldPending(id, fold) {
+  ui.collapsed[id] = fold;
+  render();
+}
+function discard(id) {
+  state.pendings = state.pendings.filter(function (x) { return x.id !== id; });
+  if (ui.negConfirmId === id) { ui.negConfirmId = null; ui.negConfirmBill = 0; }
+  markDirty();
+  render();
+}
+
+// 承認1件分の検証。戻り値 {entry, error}: OKなら entry に記帳用データ、NGなら entry=null(error に理由)
+function validatePending(p) {
+  var store = String(p.store || "").trim();
+  // 桁が大きすぎる金額は記帳できない(2026-07-21改修13-8)。
+  // 通していたら丸められて記帳され、再読み込みでその記帳が黙って消えていた
+  if (amountTooBig(p.amount)) {
+    return { entry: null, error: "金額の桁が大きすぎます。入力し直してください。" };
+  }
+  var amt = parseAmount(p.amount);
+  var hasAmt = !isNaN(amt) && amt !== 0;
+  if (!store && !hasAmt) {
+    return { entry: null, error: "店名か金額のどちらかは必要です。入力してから承認してください(不要なら「破棄する」で消せます)。" };
+  }
+  if (String(p.amount).trim() !== "" && isNaN(amt)) {
+    return { entry: null, error: "金額は整数(小数点なしの円)で入力してください。例: 1200" };
+  }
+  if (isNaN(amt)) amt = 0;
+  // 回収モードのカードは金額がマイナスでないと回収として扱われない(2026-07-21改修13-2)。
+  // プラスのまま記帳すると、未回収も預かり残高も動かない「どこにも紐づかない行」になってしまう
+  if (p.collect === true && amt >= 0) {
+    return { entry: null, error: "回収はマイナス金額で記録します。金額欄の右の「±」ボタンで符号を切り替えてください。" };
+  }
+  // 複数請求(2026-07-21改修A): bills を検証。整数でない・Σ請求分>総額 は承認不可(黙って丸めない)
+  var pb = parseBillsInput(p, amt);
+  if (pb.error) return { entry: null, error: pb.error };
+  // 人数(2026-07-21追加): 不正値は1に補正。会食系の科目で2名以上のとき、メモに「○名」を自動追記(重複防止つき)
+  var persons = parsePersons(p.persons);
+  var memo = String(p.memo || "");
+  if (persons >= 2 && amt >= 0 && (p.category === "会議費" || p.category === "接待交際費")) {
+    memo = appendPersonsMemo(memo, persons);
+  }
+  return {
+    entry: {
+      id: p.id, date: p.date || todayStr(), store: store, amount: amt,
+      category: p.category, payment: p.payment, client: String(p.client || "").trim(),
+      memo: memo, corrected: p.category !== p.aiCategory,
+      bills: pb.bills,
+      ghost: p.ghost === true,
+      // 立替の回収(2026-07-21改修13-11): 幽霊とは独立して記帳に残す。
+      // 幽霊をOFFにしても、未回収からの差し引きは正しく効き続ける
+      collect: p.collect === true,
+      persons: persons,
+      // 自動セットの印を記帳にも保存する(2026-07-21 検証6問題2の修正):
+      // 「編集→無変更で保存」でも学習除外が維持されるように、entry に catAuto を持たせる
+      catAuto: p.catAuto === true,
+      // 学習除外(2026-07-21改修B): 自動セットされた会食科目は店名→科目学習に登録しない(学習の振動防止)
+      skipLearn: p.catAuto === true && (p.category === "会議費" || p.category === "接待交際費")
+    },
+    error: ""
+  };
+}
+var stampTimer = null;
+function approveOne(id) {
+  var p = null, idx = -1;
+  for (var i = 0; i < state.pendings.length; i++) { if (state.pendings[i].id === id) { p = state.pendings[i]; idx = i; break; } }
+  if (!p) return;
+  var v = validatePending(p);
+  if (!v.entry) {
+    ui.error = v.error;
+    render();
+    return;
+  }
+  var entry = v.entry;
+  // マイナス金額は「返金・値引き」の確認を挟んでから記帳する。
+  // 請求(立替)が入っているカードをマイナスにすると、その請求は消える(マイナス記帳と併用できない)。
+  // 消える金額を必ず確認パネルに出してから確定する(2026-07-21改修13-1)
+  var risk = billsRiskSum(p);
+  if (ui.negConfirmId === id) {
+    // 確定時の再検証: パネル表示後に金額欄が書き換えられていたら、古い表示のまま記帳しない
+    if (entry.amount >= 0) {
+      // マイナスでなくなっている(空欄=0円扱い・0・プラスに書き換え)。
+      // 「マイナスで記帳する」ボタンの文言と実際の金額が食い違うため、確認なしでは記帳しない
+      ui.negConfirmId = null;
+      ui.negConfirmAmt = null;
+      ui.negConfirmBill = 0;
+      ui.error = "金額がマイナスではなくなっていたため、記帳を止めました。内容を確認して、もう一度「承認」を押してください。";
+      render();
+      return;
+    }
+    if (entry.amount !== ui.negConfirmAmt || risk.sum !== ui.negConfirmBill) {
+      // マイナスのまま金額または請求分が変わった → パネルを新しい内容で出し直して確認し直させる
+      ui.error = "";
+      render();
+      return;
+    }
+    // 表示どおりのマイナス金額・請求分 → 下の確定処理へ進む
+  } else if (entry.amount < 0) {
+    ui.negConfirmId = id;
+    ui.error = "";
+    render();
+    return;
+  }
+  ui.error = "";
+  ui.negConfirmId = null;
+  ui.negConfirmAmt = null;
+  ui.negConfirmBill = 0;
+  // 記帳はクリックの瞬間に確定する(連打・まとめて承認との二重記帳を防ぐ)。朱印アニメは見た目のみ
+  commitEntries([entry]);
+  // 押した感(2026-07-21改修E): 対応端末では短く1回振動する。
+  // navigator.vibrate を機能判定してから呼ぶ(PC・iOS Safari など非対応環境では何も起きない=エラーにしない)
+  try {
+    if (typeof navigator.vibrate === "function") navigator.vibrate(40);
+  } catch (eVib) { /* 非対応環境では何もしない */ }
+  var snap = {};
+  for (var k in p) { if (Object.prototype.hasOwnProperty.call(p, k)) snap[k] = p[k]; }
+  ui.stampSnapshot = { pending: snap, index: idx };
+  ui.stampedId = id;
+  render();
+  if (stampTimer) clearTimeout(stampTimer);
+  stampTimer = setTimeout(function () {
+    stampTimer = null;
+    ui.stampedId = null;
+    ui.stampSnapshot = null;
+    render();
+  }, 550);
+}
+// 記帳の確定(単発・まとめて共通)
+function commitEntries(list) {
+  // 二重記帳ガード: すでに台帳にある id は記帳しない
+  var seen = {};
+  state.entries.forEach(function (e) { seen[e.id] = 1; });
+  list.forEach(function (entry) {
+    if (seen[entry.id]) return;
+    seen[entry.id] = 1;
+    addClientToList(entry.client);
+    (entry.bills || []).forEach(function (b) { addClientToList(b.to); }); // 請求先も取引先リストと共用(空なら何もしない)
+    // 学習除外(2026-07-21改修B): 自動セットされた会食科目は学習しない。skipLearn は記帳データには残さない
+    var skipLearn = entry.skipLearn === true;
+    delete entry.skipLearn;
+    state.entries.push(entry);
+    if (!skipLearn) state.rules = upsertRule(state.rules, entry.store, entry.category);
+    state.pendings = state.pendings.filter(function (x) { return x.id !== entry.id; });
+  });
+  state.entries.sort(function (a, b) { return b.date.localeCompare(a.date); });
+  markDirty();
+}
+
+// ---------- まとめて承認 ----------
+function bulkCandidates() {
+  var ok = [];
+  state.pendings.forEach(function (p) {
+    var v = validatePending(p);
+    if (v.entry) ok.push(v.entry);
+  });
+  return ok;
+}
+function toggleBulk(open) {
+  ui.bulkConfirm = open;
+  ui.error = "";
+  render();
+}
+function bulkApprove() {
+  var list = bulkCandidates();
+  if (!list.length) { ui.bulkConfirm = false; render(); return; }
+  var skipped = state.pendings.length - list.length;
+  commitEntries(list);
+  ui.bulkConfirm = false;
+  ui.negConfirmId = null;
+  ui.negConfirmBill = 0;
+  ui.info = list.length + "件を記帳しました。" + (skipped > 0 ? " 店名も金額も無い、または金額・請求分に問題がある" + skipped + "件は残しました。内容を直してから承認してください。" : "");
+  render();
+}
+
+// ---------- 貼り付け取り込み ----------
+function toggleImport() {
+  ui.importOpen = !ui.importOpen;
+  ui.error = "";
+  render();
+}
+// 1行をカンマ/タブで分割。ダブルクォート囲み(中のカンマ・""エスケープ)にも対応
+function splitLine(line) {
+  if (line.indexOf('"') === -1) {
+    return line.split(/[,\t]/).map(function (s) { return s.trim(); });
+  }
+  var out = [], cur = "", inQ = false;
+  for (var i = 0; i < line.length; i++) {
+    var ch = line[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; } else { inQ = false; }
+      } else { cur += ch; }
+    } else {
+      if (ch === '"') { inQ = true; }
+      else if (ch === "," || ch === "\t") { out.push(cur.trim()); cur = ""; }
+      else { cur += ch; }
+    }
+  }
+  out.push(cur.trim());
+  return out;
+}
+// 貼り付け行の科目名を15種と照合する(表記ゆれ吸収)。
+// 前後空白を除き、NFKC正規化で全角括弧()→半角()などをそろえてから比較し、
+// 一致したら CATEGORIES の正式表記(例:「事業主貸(私用)」)を返す。一致しなければ null
+function matchCategory(name) {
+  var n = String(name || "").trim();
+  if (!n) return null;
+  try { n = n.normalize("NFKC"); } catch (e) { /* 正規化非対応環境ではそのまま比較 */ }
+  for (var i = 0; i < CATEGORIES.length; i++) {
+    var c = CATEGORIES[i];
+    var cn = c;
+    try { cn = c.normalize("NFKC"); } catch (e) { /* 同上 */ }
+    if (cn === n) return c;
+  }
+  return null;
+}
+function importLines() {
+  var lines = ui.importText.split(/\n+/).map(function (l) { return l.trim(); }).filter(Boolean);
+  var items = [];
+  lines.forEach(function (line) {
+    var parts = splitLine(line);
+    if (parts[0] === "日付") return; // ヘッダー行
+    if (parts.length < 3) return;
+    var date = parts[0], store = parts[1], amountRaw = parts[2], category = parts[3], payment = parts[4];
+    var client = parts.length >= 7 ? (parts[5] || "") : "";
+    var memo = parts.length >= 7 ? (parts[6] || "") : (parts[5] || "");
+    // 割り勘・立替(2026-07-20追加)+人数(2026-07-21追加)+幽霊(2026-07-21改修11-5): 列数で配置を自動判別する。
+    // 【列マップ】※列番号は1始まり、parts[] は0始まり
+    // ・貼り付け形式(チャットのお願い文・8〜11列目は任意):
+    //     1日付 2店名 3金額 4勘定科目 5支払方法 6取引先 7メモ 8請求分 9請求先 10人数 11幽霊
+    //     → billRaw=parts[7] / billToRaw=parts[8] / personsRaw=parts[9] / ghostRaw=parts[10]
+    // ・このアプリの旧12列CSV(貼り直し):
+    //     1日付 2店名 3金額 4勘定科目 5支払方法 6取引先 7メモ 8自分負担 9請求分 10請求先 11回収 12人数
+    //     → billRaw=parts[8] / billToRaw=parts[9] / personsRaw=parts[11](幽霊列は無い)
+    // ・旧11列CSV: 1〜7は同じ 8自分負担 9請求分 10請求先 11回収(人数・幽霊なし)
+    // 11列の行は「旧11列CSV」と「貼り付け形式の11列目=幽霊」がぶつかるため、次の3つのどれかに当たれば旧11列CSVとみなす:
+    //   (a) 9列目が数値 … 貼り付け形式の9列目は請求先(名前)なので、数値なら旧CSVの請求分
+    //   (b) 10列目が数値でない文字 … 貼り付け形式の10列目は人数(数値)なので、名前なら旧CSVの請求先
+    //   (c) 11列目が「数値でも幽霊フラグでもない文字」… 旧CSVの回収状態(未回収/回収済み)
+    // (c) を入れたことで「請求分が空欄の旧11列CSV」(例: ...,10000,,,未回収)も正しく判定でき、
+    // 8列目の自分負担が「請求分」として読まれて自分負担0円になる誤取り込みを防ぐ(検証8 問題4)。
+    // 11列目が空・0・1 のときは幽霊フラグ側として扱う(貼り付け形式を優先)
+    var billRaw = "", billToRaw = "", personsRaw = "", ghostRaw = "";
+    var c9 = String(parts[8] == null ? "" : parts[8]).trim();
+    var c10 = String(parts[9] == null ? "" : parts[9]).trim();
+    var c11 = String(parts[10] == null ? "" : parts[10]).trim();
+    var old11 = parts.length === 11 && (
+      (c9 !== "" && !isNaN(parseAmount(c9)))                                        // (a)
+      || (c10 !== "" && isNaN(parseAmount(c10)))                                    // (b)
+      || (c11 !== "" && isNaN(parseAmount(c11)) && !parseGhostFlag(c11))            // (c)
+    );
+    if (parts.length >= 12) {
+      billRaw = parts[8] || "";
+      billToRaw = parts[9] || "";
+      personsRaw = parts[11] || "";
+    } else if (old11) {
+      billRaw = parts[8] || "";
+      billToRaw = parts[9] || "";
+    } else if (parts.length >= 11) {
+      billRaw = parts[7] || "";
+      billToRaw = parts[8] || "";
+      personsRaw = parts[9] || "";
+      ghostRaw = parts[10] || "";
+    } else if (parts.length === 10) {
+      billRaw = parts[7] || "";
+      billToRaw = parts[8] || "";
+      personsRaw = parts[9] || "";
+    } else if (parts.length >= 8) {
+      billRaw = parts[7] || "";
+      billToRaw = parts[8] || "";
+    }
+    // 貼り付けた行に有効な科目(15種のいずれか)が書かれていれば、それを最優先で採用する
+    // (チャット側で金額基準により仕分けた科目を、学習ルールが黙って上書きしないため)。
+    // 全角括弧などの表記ゆれは matchCategory で吸収し、保存は常に正式表記に統一する。
+    // 科目が空欄・15種外のときだけ、学習ルール → なければ「雑費」の順で補完する
+    var normCat = matchCategory(category);
+    var rule = normCat !== null ? null : findRule(store);
+    var cat = normCat !== null ? normCat : (rule ? rule.category : "雑費");
+    // 金額の解釈は手入力と同じ parseAmount に一本化(全角数字もNFKCで解釈)。
+    // 解釈できない値は 0 にせず原文のまま残し、承認時のエラーで気づけるようにする
+    var amt = parseAmount(amountRaw);
+    // 請求分の安全策: 整数にならない・負の値は0。総額を超える値は総額に丸める
+    var bill = billRaw === "" ? 0 : parseAmount(billRaw);
+    if (isNaN(bill) || bill < 0) bill = 0;
+    if (!isNaN(amt)) {
+      if (amt < 0) bill = 0;          // マイナス記帳は請求分0固定
+      else if (bill > amt) bill = amt; // 総額に丸め
+    }
+    // 人数(2026-07-21追加): 不正値・空欄は1に補正
+    var persons = parsePersons(personsRaw);
+    // 幽霊フラグ(2026-07-21改修11-5): 11列目に 1 / true / ○ があればCSV除外の行として取り込む
+    var ghost = parseGhostFlag(ghostRaw);
+    // 複数請求先(2026-07-21改修A): 請求先が「/」区切りなら複数として取り込み、
+    // 請求分合計を請求先数で均等割り(切り捨て)し、端数は先頭の請求先に足す(1円も消えない)
+    var importBills = [];
+    if (bill > 0) {
+      var billNames = String(billToRaw || "").split("/").map(function (s) { return cleanBillName(s); }).filter(Boolean);
+      if (billNames.length <= 1) {
+        importBills = [{ to: billNames[0] || "", amount: String(bill), status: "unpaid", paidDate: "" }];
+      } else {
+        var billBase = Math.floor(bill / billNames.length);
+        var billRem = bill - billBase * billNames.length;
+        importBills = billNames.map(function (nm, ix) {
+          return { to: nm, amount: String(ix === 0 ? billBase + billRem : billBase), status: "unpaid", paidDate: "" };
+        });
+      }
+    }
+    items.push({
+      id: newId(),
+      date: /^\d{4}-\d{2}-\d{2}$/.test(date || "") ? date : todayStr(),
+      store: store || "",
+      amount: isNaN(amt) ? String(amountRaw || "") : String(amt),
+      category: cat,
+      aiCategory: cat,
+      payment: PAYMENTS.indexOf(payment) !== -1 ? payment : "現金",
+      client: client, memo: memo,
+      source: rule ? "rule" : "import",
+      clientAdding: false,
+      bills: importBills,
+      billToAdding: false, billToNew: "",
+      catAuto: false, catManual: false,
+      persons: String(persons),
+      personsAdding: false,
+      ghost: ghost,          // 幽霊(2026-07-21改修11-5): 11列目=1 の行はCSV除外で取り込む
+      // 貼り付け形式では「マイナス金額+11列目=1」が立替の回収の書き方なので、その組み合わせを回収として取り込む。
+      // 取り込んだあとは、幽霊をOFFにしても回収の印(collect)は残る(2026-07-21改修13-11)
+      collect: ghost && !isNaN(amt) && amt < 0
+    });
+  });
+  if (!items.length) {
+    ui.error = "取り込める行が見つかりませんでした。「日付,店名,金額,勘定科目,支払方法,取引先,メモ」の形式で貼り付けてください。";
+    render();
+    return;
+  }
+  ui.error = "";
+  state.pendings = state.pendings.concat(items);
+  ui.importOpen = false;
+  ui.importText = "";
+  markDirty();
+  render();
+}
+
+// ---------- 記帳済みの操作 ----------
+function toggleEntry(id) {
+  if (state.editDraft && state.editDraft.id !== id) {
+    state.editDraft = null;
+    markDirty();
+  }
+  ui.expandedId = (ui.expandedId === id) ? null : id;
+  render();
+}
+function changeEntryCategory(id, category) {
+  var target = null;
+  for (var i = 0; i < state.entries.length; i++) { if (state.entries[i].id === id) { target = state.entries[i]; break; } }
+  if (!target) return;
+  target.category = category;
+  // 台帳のプルダウンでの変更=手動選択(2026-07-21 検証6問題2の修正): 自動セットの印を外す(従来どおり学習する)
+  target.catAuto = false;
+  state.rules = upsertRule(state.rules, target.store, category);
+  markDirty();
+  render();
+}
+function startEdit(id) {
+  var e = null;
+  for (var i = 0; i < state.entries.length; i++) { if (state.entries[i].id === id) { e = state.entries[i]; break; } }
+  if (!e) return;
+  state.editDraft = {
+    id: e.id, date: e.date, store: e.store || "", amount: String(e.amount),
+    category: e.category, payment: e.payment || "現金",
+    client: e.client || "", memo: e.memo || "", clientAdding: false,
+    bills: (e.bills || []).map(function (b) {
+      return { to: b.to, amount: String(b.amount), status: b.status, paidDate: b.paidDate, paidBy: b.paidBy || "", autoSkip: b.autoSkip === true, paidAmt: Number(b.paidAmt) || 0, paidManual: Number(b.paidManual) || 0 };
+    }),
+    billToAdding: false, billToNew: "",
+    ghost: e.ghost === true,
+    collect: e.collect === true, // 立替の回収の印(2026-07-21改修13-11): 編集の往復で失わない
+    // 自動セットの印を記帳から引き継ぐ(2026-07-21 検証6問題2の修正):
+    // 「編集→無変更で保存」でも学習除外が失われないようにする。手動で科目を選ぶと catAuto=false に戻る(従来どおり学習)
+    catAuto: e.catAuto === true, catManual: false,
+    persons: String(parsePersons(e.persons)),
+    personsAdding: parsePersons(e.persons) > 9
+  };
+  // 編集フォームの「割り勘・立替」欄の開閉は全編集で共通のキー(__draft__)を使っているため、
+  // 前に編集した記帳で開いたままだと、次に開いた記帳でも開いて見える(2026-07-21改修12-1)。
+  // 編集を始めるたびに既定(請求がある記帳だけ開く)へ戻す
+  delete ui.billOpen["__draft__"];
+  ui.editNeg = null; // 前の編集で出したマイナス保存の確認は持ち越さない(2026-07-21改修13-6)
+  ui.expandedId = id;
+  markDirty();
+  render();
+}
+function updDraft(field, value) {
+  if (!state.editDraft) return;
+  state.editDraft[field] = value;
+  markDirty();
+}
+function updDraftR(field, value) { updDraft(field, value); render(); }
+function draftClientSel(value) {
+  if (value === "__ADD__") {
+    updDraft("client", "");
+    updDraft("clientAdding", true);
+  } else {
+    updDraft("client", value);
+    updDraft("clientAdding", false);
+  }
+  render();
+}
+// confirmed=true は「マイナスで保存する」確認パネルのボタンから呼ばれたとき(2026-07-21改修13-6)
+function saveEdit(confirmed) {
+  var d = state.editDraft;
+  if (!d) return;
+  // 桁が大きすぎる金額は保存できない(2026-07-21改修13-8)
+  if (amountTooBig(d.amount)) {
+    ui.editNeg = null;
+    ui.error = "金額の桁が大きすぎます。入力し直してください。";
+    render();
+    return;
+  }
+  var amt = parseAmount(d.amount);
+  if (isNaN(amt)) {
+    ui.editNeg = null;
+    ui.error = "金額は整数(小数点なしの円)で入力してください。例: 1200";
+    render();
+    return;
+  }
+  // 回収の記帳は金額がマイナスでないと回収として扱われない(2026-07-21改修13-12・検証10 問題7の修正)。
+  // 承認側 validatePending() と同じ条件・同じ文言で止める。
+  // ここが無いと、±でプラスにして保存した瞬間に、警告なしで通常の経費に変わってしまう
+  if (d.collect === true && amt >= 0) {
+    ui.editNeg = null;
+    ui.error = "回収はマイナス金額で記録します。金額欄の右の「±」ボタンで符号を切り替えてください。";
+    render();
+    return;
+  }
+  // マイナス保存は承認待ちカードと同じく確認を挟む(2026-07-21改修13-6)。
+  // 請求(立替)が入っている記帳をマイナスにすると、その請求は消える(併用できない)ので、
+  // 消える金額を確認パネルに出してから確定する(2026-07-21改修13-1)
+  var risk = billsRiskSum(d);
+  if (amt < 0) {
+    if (confirmed !== true) {
+      // 承認待ちカードと同じく、請求先名と件数まで出す(2026-07-21改修13-11・検証10 問題6の修正)
+      ui.editNeg = { amt: amt, sum: risk.sum, count: risk.count, names: risk.names };
+      ui.error = "";
+      render();
+      return;
+    }
+    // 確定時の再検証: パネル表示後に金額・請求分が変わっていたら、古い表示のまま保存しない
+    if (!ui.editNeg || ui.editNeg.amt !== amt || ui.editNeg.sum !== risk.sum) {
+      ui.editNeg = null;
+      ui.error = "";
+      render();
+      return;
+    }
+  } else if (confirmed === true) {
+    // パネルを出したまま「±」でプラスに戻して押した場合。文言と金額が食い違うため保存しない
+    ui.editNeg = null;
+    ui.error = "金額がマイナスではなくなっていたため、保存を止めました。内容を確認して、もう一度「保存する」を押してください。";
+    render();
+    return;
+  }
+  ui.editNeg = null;
+  // 複数請求(2026-07-21改修A): bills を検証。整数でない・Σ請求分>総額 は保存不可(黙って丸めない)
+  var pb = parseBillsInput(d, amt);
+  if (pb.error) {
+    ui.error = pb.error;
+    render();
+    return;
+  }
+  ui.error = "";
+  // 人数(2026-07-21追加): 不正値は1に補正。会食系の科目で2名以上ならメモに「○名」を追記(重複防止つき)
+  var persons = parsePersons(d.persons);
+  var memoOut = String(d.memo || "");
+  if (persons >= 2 && amt >= 0 && (d.category === "会議費" || d.category === "接待交際費")) {
+    memoOut = appendPersonsMemo(memoOut, persons);
+  }
+  for (var i = 0; i < state.entries.length; i++) {
+    var x = state.entries[i];
+    if (x.id === d.id) {
+      x.date = d.date; x.store = String(d.store || "").trim(); x.amount = amt;
+      x.category = d.category; x.payment = d.payment;
+      x.client = String(d.client || "").trim(); x.memo = memoOut;
+      x.persons = persons;
+      x.bills = pb.bills; // 回収状態(status/paidDate)は明細ごとに引き継がれる
+      x.ghost = d.ghost === true; // 幽霊(2026-07-21改修D)
+      x.collect = d.collect === true; // 立替の回収(2026-07-21改修13-11)
+      x.catAuto = d.catAuto === true; // 自動セットの印を保存し直す(2026-07-21 検証6問題2の修正)
+      break;
+    }
+  }
+  state.entries.sort(function (a, b) { return b.date.localeCompare(a.date); });
+  // 学習除外(2026-07-21改修B): 自動セットされた会食科目は学習しない(手動選択は従来どおり学習する)
+  var skipLearn = d.catAuto === true && (d.category === "会議費" || d.category === "接待交際費");
+  if (String(d.store || "").trim() && !skipLearn) {
+    state.rules = upsertRule(state.rules, d.store, d.category);
+  }
+  addClientToList(d.client);
+  pb.bills.forEach(function (b) { addClientToList(b.to); }); // 請求先も取引先リストと共用
+  state.editDraft = null;
+  ui.expandedId = null;
+  markDirty();
+  render();
+}
+function cancelEdit() {
+  state.editDraft = null;
+  ui.editNeg = null;
+  markDirty();
+  render();
+}
+function deleteEntry(id) {
+  // 削除ログ(2026-07-20追加): 何を消したかを記録し、原本写真の整理(削除済みフォルダへの移動)に使う
+  for (var i = 0; i < state.entries.length; i++) {
+    var e = state.entries[i];
+    if (e.id === id) {
+      state.deletedLog.push({
+        deletedAt: todayStr(),
+        date: String(e.date || ""),
+        store: String(e.store || ""),
+        amount: Number.isSafeInteger(e.amount) ? e.amount : 0,
+        category: String(e.category || ""),
+        memo: String(e.memo || "")
+      });
+      break;
+    }
+  }
+  state.entries = state.entries.filter(function (e) { return e.id !== id; });
+  if (state.editDraft && state.editDraft.id === id) state.editDraft = null;
+  ui.editNeg = null;
+  ui.expandedId = null;
+  markDirty();
+  render();
+}
+
+// ---------- 集計 ----------
+// 自分負担 = 金額(総額) − Σ請求分(bills の合計)。整数の引き算のみ(割り算・浮動小数点なし)。
+// 経費の集計(月合計・科目別・当月サマリー)はすべてこの自分負担ベースで行う
+function entryOwn(e) {
+  var a = Number.isSafeInteger(e.amount) ? e.amount : 0;
+  return a - billSum(e.bills);
+}
+function getClients() {
+  var set = {};
+  state.clientList.forEach(function (c) { set[c] = 1; });
+  state.entries.forEach(function (e) { if (e.client) set[e.client] = 1; });
+  return Object.keys(set).sort();
+}
+function getFilteredEntries() {
+  // 取引先フィルタ(2026-07-21改修C): 複数選択。未選択(空配列)=すべて表示
+  return state.entries.filter(function (e) {
+    return ui.viewClients.length === 0 || ui.viewClients.indexOf(e.client || "") !== -1;
+  });
+}
+function getYears() {
+  var set = {};
+  state.entries.forEach(function (e) { var y = String(e.date || "").slice(0, 4); if (y) set[y] = 1; });
+  return Object.keys(set).sort(function (a, b) { return b.localeCompare(a); });
+}
+
+// ---------- CSV ----------
+function csvCell(v) { return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'; }
+// CSVに出力する行(2026-07-21 確定申告用に純化・ユーザー指示):
+// ・幽霊行(ghost=ON)は出さない(従来どおり)
+// ・自分負担0円の行(全額立替=自分の経費ではない)も出さない
+// フッターのCSVボタンの件数表示も、この関数の行数に合わせる
+function csvTargets() {
+  return state.entries.filter(function (e) {
+    return e.ghost !== true && entryOwn(e) !== 0;
+  });
+}
+function buildCsv() {
+  // 7列(2026-07-21 確定申告用に純化・ユーザー指示)。「金額」=自分負担(総額−Σ請求分)で、そのまま申告に転記できる。
+  // 立替分(請求分・請求先)・回収状態・人数はCSVに出さない(全データの控えはJSON控えの役目)。
+  // BOM付きUTF-8・日付昇順・全セルクォートは従来どおり
+  var header = "日付,店名,金額,勘定科目,支払方法,取引先,メモ";
+  var rows = csvTargets().slice()
+    .sort(function (a, b) { return a.date.localeCompare(b.date); })
+    .map(function (e) {
+      return [e.date, e.store, entryOwn(e), e.category, e.payment || "現金", e.client || "", e.memo]
+        .map(csvCell).join(",");
+    });
+  return "﻿" + [header].concat(rows).join("\n");
+}
+function openCsv() {
+  ui.csvText = buildCsv();
+  ui.csvOpen = true;
+  ui.copyMsg = "";
+  render();
+}
+function closeCsv() {
+  ui.csvOpen = false;
+  ui.csvText = "";
+  render();
+}
+function markBackup() {
+  state.lastBackup = todayStr();
+  markDirty();
+}
+function copyText(text, done, fail) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, fail);
+  } else {
+    fail();
+  }
+}
+function copyCsv() {
+  copyText(ui.csvText, function () {
+    markBackup();
+    ui.copyMsg = "コピーしました。Googleドライブや自分宛メールなど、端末の外に貼り付けて控えを保存してください(実施日を記録しました)。";
+    render();
+  }, function () {
+    ui.copyMsg = "自動コピーができませんでした。下の枠をロングタップ→全選択→コピーしてください。";
+    render();
+  });
+}
+function downloadCsv() {
+  if (window.claude && window.claude.downloads) {
+    window.claude.downloads.save({ filename: "経理台帳_" + todayStr() + ".txt", data: ui.csvText })
+      .then(function () {
+        markBackup();
+        ui.copyMsg = "保存しました(拡張子は .txt です。Excelで使うときはファイル名の末尾を .csv に変えても、そのままExcelで開いても大丈夫です)。";
+        render();
+      }, function (err) {
+        if (err && err.code === "declined") {
+          ui.copyMsg = "保存を取り消しました。";
+        } else {
+          ui.copyMsg = "ファイル保存ができない環境のようです。「全文をコピー」をお使いください。";
+        }
+        render();
+      });
+    return;
+  }
+  // ブラウザ標準のダウンロード(通常のブラウザで開いている場合)
+  try {
+    var blob = new Blob([ui.csvText], { type: "text/csv;charset=utf-8;" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "経理台帳_" + todayStr() + ".csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    markBackup();
+    ui.copyMsg = "保存を開始しました。";
+  } catch (e) {
+    ui.copyMsg = "ファイル保存ができませんでした。「全文をコピー」をお使いください。";
+  }
+  render();
+}
+
+// ---------- JSON控え(丸ごとバックアップ) ----------
+// 修正(2026-07-20): JSON控えの成功時にも markBackup(控え実施日の記録)を呼ぶ。
+// CSVコピー/保存と同等の扱い。JSONの方が完全な控えなのに督促が消えない不整合の解消(壁打ち問題4)
+function copyJson() {
+  var text = JSON.stringify(state);
+  copyText(text, function () {
+    markBackup();
+    ui.jsonMsg = "JSONをコピーしました。Googleドライブや自分宛メールなど、端末の外に貼り付けて保存してください(控えの実施日を記録しました)。";
+    renderPage();
+  }, function () {
+    ui.jsonMsg = "自動コピーができませんでした。「JSONをファイル保存」をお試しください。";
+    renderPage();
+  });
+}
+function downloadJson() {
+  var text = JSON.stringify(state);
+  if (window.claude && window.claude.downloads) {
+    window.claude.downloads.save({ filename: "経理台帳控え_" + todayStr() + ".json", data: text })
+      .then(function () {
+        markBackup();
+        ui.jsonMsg = "JSONを保存しました(控えの実施日を記録しました)。保存先はGoogleドライブ等、端末の外がおすすめです。";
+        renderPage();
+      }, function (err) {
+        ui.jsonMsg = (err && err.code === "declined") ? "保存を取り消しました。" : "ファイル保存ができない環境のようです。「JSONをコピー」をお使いください。";
+        renderPage();
+      });
+    return;
+  }
+  try {
+    var blob = new Blob([text], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "経理台帳控え_" + todayStr() + ".json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    markBackup();
+    ui.jsonMsg = "保存を開始しました(控えの実施日を記録しました)。";
+  } catch (e) {
+    ui.jsonMsg = "ファイル保存ができませんでした。「JSONをコピー」をお使いください。";
+  }
+  renderPage();
+}
+// ---------- 削除ログ(2026-07-20追加) ----------
+// 外部から来た削除ログを検証・整形する(loadState と JSON復元で共用)。
+// 不正な行は捨てず、各項目を安全な値(文字列・整数)に整えて残す
+function sanitizeDeletedLog(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter(function (x) { return x && typeof x === "object"; })
+    .map(function (x) {
+      var amt = Number(x.amount);
+      return {
+        deletedAt: /^\d{4}-\d{2}-\d{2}$/.test(String(x.deletedAt || "")) ? String(x.deletedAt) : todayStr(),
+        date: /^\d{4}-\d{2}-\d{2}$/.test(String(x.date || "")) ? String(x.date) : "",
+        store: String(x.store || ""),
+        amount: Number.isSafeInteger(amt) ? amt : 0,
+        category: String(x.category || ""),
+        memo: String(x.memo || "")
+      };
+    });
+}
+// チャットに貼る用のテキスト。1行目にお願い文、2行目以降はCSV(削除日,日付,店名,金額,科目,メモ)
+function buildDeletedLogText() {
+  var header = "削除日,日付,店名,金額,科目,メモ";
+  var rows = state.deletedLog.map(function (x) {
+    return [x.deletedAt, x.date, x.store, x.amount, x.category, x.memo].map(csvCell).join(",");
+  });
+  return "経理台帳の削除ログです。以下の記帳を台帳から削除しました。対応するレシート原本写真があれば「削除済み」フォルダへ移動してください。\n"
+    + [header].concat(rows).join("\n");
+}
+function copyDeletedLog() {
+  if (state.deletedLog.length === 0) {
+    ui.logMsg = "削除ログは空です(記帳を削除するとここに記録されます)。";
+    renderPage();
+    return;
+  }
+  copyText(buildDeletedLogText(), function () {
+    ui.logMsg = "削除ログをコピーしました。チャットに貼り付けると、原本写真の移動をお願いできます。";
+    renderPage();
+  }, function () {
+    ui.logMsg = "自動コピーができませんでした。上の枠を長押しして選択・コピーしてください。";
+    renderPage();
+  });
+}
+function clearDeletedLog() {
+  state.deletedLog = [];
+  ui.logClearConfirm = false;
+  ui.logMsg = "削除ログを空にしました。";
+  markDirty();
+  renderPage();
+}
+
+// 復元する記帳1行の検証・整形。金額が整数でない等の不正があれば null(不合格)
+// 複数請求(2026-07-21改修A): bills 配列を正とする。旧形式(billAmount 等4フィールド)は
+// 読み込み時に bills 1件へ自動変換する(旧データ互換。変換後は旧フィールドを保存しない)
+function sanitizeEntry(e) {
+  if (!e || typeof e !== "object") return null;
+  var amt = Number(e.amount);
+  if (!Number.isSafeInteger(amt)) return null;
+  var date = String(e.date || "");
+  var bills = [];
+  if (Array.isArray(e.bills)) {
+    // 新形式: 各明細を厳密に検証。不正(整数でない・1円未満・Σ>総額)は行ごと不合格(黙って作り変えない)
+    for (var i = 0; i < e.bills.length; i++) {
+      var b = e.bills[i];
+      if (!b || typeof b !== "object") return null;
+      var ba = Number(b.amount);
+      if (!Number.isSafeInteger(ba) || ba < 1) return null;
+      var st = b.status === "paid" ? "paid" : "unpaid";
+      bills.push({
+        to: cleanBillName(b.to),
+        amount: ba,
+        status: st,
+        paidDate: st === "paid"
+          ? (/^\d{4}-\d{2}-\d{2}$/.test(String(b.paidDate || "")) ? String(b.paidDate) : todayStr())
+          : "",
+        // 回収行からの自動反映(2026-07-21改修11-7): paidBy=消し込んだ回収行のid / autoSkip=手動で取り消したので自動対象外
+        // paidAmt=一部回収の回収済み額(0〜請求額。満額なら status="paid" 側で表す)
+        paidBy: typeof b.paidBy === "string" ? b.paidBy : "",
+        autoSkip: b.autoSkip === true,
+        paidAmt: (function (v) {
+          var n = Number(v);
+          if (!Number.isSafeInteger(n) || n < 0) return 0;
+          return n > ba ? ba : n;
+        })(b.paidAmt),
+        // paidManual=手動で「回収済みにする」を押したぶん(2026-07-21改修13-3)。
+        // 自動充当ぶんと分けて持ち、applyCollections の取り消し(①)でも残す
+        paidManual: (function (v) {
+          var n = Number(v);
+          if (!Number.isSafeInteger(n) || n < 0) return 0;
+          return n > ba ? ba : n;
+        })(b.paidManual)
+      });
+    }
+    if (amt < 0) bills = [];                    // マイナス記帳(返金・値引き)と請求の併用は不可
+    else if (billSum(bills) > amt) return null; // Σ請求分 ≦ 総額 を満たさない行は不合格
+  } else {
+    // 旧形式(単一bill)の自動変換。丸め方は旧仕様のまま(整数でない・負→0、総額超→総額に丸め)
+    var bill = Number(e.billAmount == null ? 0 : e.billAmount);
+    if (!Number.isSafeInteger(bill) || bill < 0) bill = 0;
+    if (amt < 0) bill = 0;
+    else if (bill > amt) bill = amt;
+    if (bill > 0) {
+      var bs = e.billStatus === "paid" ? "paid" : "unpaid";
+      bills = [{
+        to: cleanBillName(e.billTo),
+        amount: bill,
+        status: bs,
+        paidDate: bs === "paid"
+          ? (/^\d{4}-\d{2}-\d{2}$/.test(String(e.billPaidDate || "")) ? String(e.billPaidDate) : todayStr())
+          : ""
+      }];
+    }
+  }
+  return {
+    id: String(e.id || newId()),
+    date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayStr(),
+    store: String(e.store || ""),
+    amount: amt,
+    category: CATEGORIES.indexOf(e.category) !== -1 ? e.category : "雑費",
+    payment: PAYMENTS.indexOf(e.payment) !== -1 ? e.payment : "現金",
+    client: String(e.client || ""),
+    memo: String(e.memo || ""),
+    corrected: !!e.corrected,
+    bills: bills,
+    // 幽霊(2026-07-21改修D): true の行はCSV書き出しから除外(表示・集計・JSON控えには含む)。true 以外はすべて false
+    ghost: e.ghost === true,
+    // 立替の回収(2026-07-21改修13-11): 幽霊とは別の独立したフラグ。
+    // 旧データ(このフィールドが無い)は、これまでの判定(幽霊ON+マイナス+取引先あり)で回収とみなして引き継ぐ。
+    // 明示的に false が入っている行は、そのまま「回収ではない」を尊重する(勝手に回収へ戻さない)
+    collect: typeof e.collect === "boolean"
+      ? e.collect
+      : (e.ghost === true && amt < 0 && String(e.client || "").trim() !== ""),
+    // 自動セット科目の印(2026-07-21 検証6問題2の修正): 学習除外の維持に使う。旧データ(フィールド無し)は false
+    catAuto: e.catAuto === true,
+    // 人数(2026-07-21追加): 旧データ(フィールド無し)・不正値は1に補完(整数1〜999のみ許可)
+    persons: parsePersons(e.persons),
+    // 回収行が実際に消し込んだ金額(2026-07-21改修11-7)。applyCollections が毎回計算し直すので、
+    // 旧データ・不正値は0でよい(表示用の印)
+    collectApplied: Number.isSafeInteger(Number(e.collectApplied)) ? Number(e.collectApplied) : 0,
+    collectUnused: Number.isSafeInteger(Number(e.collectUnused)) ? Number(e.collectUnused) : 0
+  };
+}
+function importJson() {
+  var el = document.getElementById("jsonImportText");
+  var text = el ? el.value.trim() : "";
+  if (!text) {
+    ui.jsonMsg = "復元するJSONを上の枠に貼り付けてください。";
+    renderPage();
+    return;
+  }
+  var d = null;
+  try { d = JSON.parse(text); } catch (e) { d = null; }
+  if (!d || typeof d !== "object" || !Array.isArray(d.entries) || !Array.isArray(d.rules)) {
+    ui.jsonMsg = "復元できませんでした。JSONが壊れているか、形式が違います(既存のデータは変えていません)。";
+    renderPage();
+    return;
+  }
+  // 全行を検証。1件でも不正があれば復元を中止する(経理データを黙って作り変えない)
+  var cleaned = d.entries.map(sanitizeEntry);
+  var bad = 0;
+  cleaned.forEach(function (x) { if (x === null) bad++; });
+  if (bad > 0) {
+    ui.jsonMsg = "復元を中止しました。金額などが不正な記帳が " + bad + " 件あります(既存のデータは変えていません)。";
+    renderPage();
+    return;
+  }
+  var cleanRules = d.rules.filter(function (r) {
+    return r && typeof r === "object" && typeof r.store === "string" && typeof r.category === "string";
+  }).map(function (r) {
+    return {
+      key: normalize(r.store),
+      store: r.store,
+      category: CATEGORIES.indexOf(r.category) !== -1 ? r.category : "雑費",
+      count: Number.isSafeInteger(Number(r.count)) ? Number(r.count) : 1
+    };
+  });
+  // 復元前に現在のデータを1世代前バックアップへ退避
+  try {
+    var prev = localStorage.getItem(STORAGE_KEY);
+    if (prev !== null) localStorage.setItem(BACKUP_KEY, prev);
+  } catch (e) { /* 退避失敗でも復元は続行 */ }
+  state.entries = cleaned;
+  state.rules = cleanRules;
+  state.pendings = Array.isArray(d.pendings)
+    ? d.pendings.filter(function (p) { return p && typeof p === "object"; }).map(migratePendingBills)
+    : [];
+  state.clientList = sanitizeClientList(d.clientList);
+  state.editDraft = (d.editDraft && typeof d.editDraft === "object") ? d.editDraft : null;
+  if (state.editDraft) {
+    var draftWasOld = !Array.isArray(state.editDraft.bills);
+    migratePendingBills(state.editDraft);
+    state.editDraft.id = String(state.editDraft.id);
+    syncDraftBillsFromEntry(draftWasOld);
+  }
+  state.lastBackup = d.lastBackup || "";
+  // 最終保存時刻(2026-07-21追加): 控えに無い(古い控えの)場合は今の値を保持(直後の自動保存で更新される)
+  state.lastSavedAt = typeof d.lastSavedAt === "string" ? d.lastSavedAt : state.lastSavedAt;
+  // 削除ログ(2026-07-20追加): 控えに無い(この機能より古い控えの)場合は、今のログを保持する
+  // (原本写真の整理待ちの記録を、復元操作で失わないため)
+  state.deletedLog = Array.isArray(d.deletedLog) ? sanitizeDeletedLog(d.deletedLog) : state.deletedLog;
+  state.entries.forEach(function (e) { e.id = String(e.id); });
+  state.pendings.forEach(function (p) { p.id = String(p.id); });
+  if (el) el.value = "";
+  ui.jsonMsg = "復元しました(記帳" + state.entries.length + "件)。";
+  markDirty();
+  render();
+  renderPage();
+}
+
+// ---------- 保存セルフテスト ----------
+function runSelfTest() {
+  try {
+    var key = "keiri-selftest";
+    var stamp = "test-" + Date.now();
+    localStorage.setItem(key, stamp);
+    var back = localStorage.getItem(key);
+    localStorage.removeItem(key);
+    ui.selfTestMsg = (back === stamp)
+      ? "保存テスト: 成功(このブラウザで保存・読み込みとも正常に動いています)※このテストは「いま保存できるか」の確認だけで、7日後や機種変更後にデータが残る保証ではありません。控えは別途、端末の外へ残してください。"
+      : "保存テスト: 異常(保存した値と読み込んだ値が違います)";
+  } catch (e) {
+    ui.selfTestMsg = "保存テスト: 失敗(" + (e && e.message ? e.message : "不明") + ")。プライベートブラウズ中は保存できないことがあります。";
+  }
+  renderPage();
+}
+
+// ---------- ページ・パネル ----------
+function openPage(name) {
+  ui.page = name;
+  ui.selfTestMsg = "";
+  ui.jsonMsg = "";
+  ui.logMsg = "";
+  ui.logClearConfirm = false;
+  renderPage();
+}
+function closePage() {
+  ui.page = "";
+  renderPage();
+  render();
+}
+function copyAskText() {
+  copyText(ASK_TEXT, function () {
+    ui.jsonMsg = "お願い文をコピーしました。チャットに写真と一緒に貼り付けてください。";
+    renderPage();
+  }, function () {
+    ui.jsonMsg = "自動コピーができませんでした。上の枠を長押しして選択・コピーしてください。";
+    renderPage();
+  });
+}
+function addClientFromPage() {
+  var el = document.getElementById("newClientName");
+  if (!el) return;
+  addClientToList(el.value);
+  el.value = "";
+  markDirty();
+  renderPage();
+}
+function removeClient(name) {
+  state.clientList = state.clientList.filter(function (c) { return c !== name; });
+  markDirty();
+  renderPage();
+}
+
+// ---------- 描画 ----------
+function selectHtml(options, selected, attr) {
+  return '<select ' + attr + '>' + options.map(function (o) {
+    return '<option value="' + esc(o) + '"' + (o === selected ? " selected" : "") + '>' + esc(o) + '</option>';
+  }).join("") + '</select>';
+}
+function clientSelectHtml(current, onchangeAttr) {
+  var list = state.clientList.slice();
+  var extra = "";
+  if (current && list.indexOf(current) === -1) {
+    extra = '<option value="' + esc(current) + '" selected>' + esc(current) + '</option>';
+  }
+  return '<select ' + onchangeAttr + '>'
+    + '<option value=""' + (!current ? " selected" : "") + '>(指定なし)</option>'
+    + extra
+    + list.map(function (c) {
+      return '<option value="' + esc(c) + '"' + (c === current ? " selected" : "") + '>' + esc(c) + '</option>';
+    }).join("")
+    + '<option value="__ADD__">＋ 新しい取引先を入力</option>'
+    + '</select>';
+}
+
+function renderSummary() {
+  var thisMonth = todayStr().slice(0, 7);
+  var total = 0, ghostSum = 0;
+  state.entries.forEach(function (e) {
+    if (String(e.date || "").slice(0, 7) === thisMonth) {
+      total += entryOwn(e);
+      if (e.ghost === true) ghostSum += entryOwn(e);
+    }
+  });
+  document.getElementById("summary").innerHTML =
+    '<div class="summary"><span class="label">' + esc(monthLabel(thisMonth)) + 'の経費(自分負担)</span>'
+    + '<span class="amount' + (total < 0 ? ' amount-minus' : '') + '">' + esc(yenDisp(total)) + '</span>'
+    + (ghostSum !== 0 ? '<span class="ghost-note">うち幽霊(CSV除外) ' + esc(yenDisp(ghostSum)) + '</span>' : '')
+    + '</div>';
+}
+
+// 保存バー(2026-07-21 ユーザー指示): 手動保存ボタン+最終保存時刻+「未保存の変更あり」の常時表示。
+// 起動時に保存データが空だった場合は、データ消失にすぐ気づけるよう目立つ警告を出す
+function renderSaveBar() {
+  var el = document.getElementById("saveBar");
+  if (!el) return;
+  var status;
+  if (ui.justSavedMsg && !ui.dirty) {
+    status = '<span class="save-done">✓ ' + esc(ui.justSavedMsg) + '</span>';
+  } else if (state.lastSavedAt) {
+    status = '<span class="save-time">' + esc((ui.savedThisSession ? "最終保存: " : "前回保存: ") + stampDisp(state.lastSavedAt)) + '</span>';
+  } else {
+    status = '<span class="save-time">まだ保存されていません</span>';
+  }
+  if (ui.dirty) status += '<span class="save-dirty">未保存の変更あり</span>';
+  var h = '<div class="save-bar"><button class="save-btn" data-act="save-now">保存</button>'
+    + '<div class="save-status">' + status + '</div></div>';
+  if (ui.noSavedData) {
+    h += '<div class="notice notice-error"><div class="n-head"><span class="warn-ic sm">!</span><span>'
+      + esc("保存データが見つかりません。初めての起動でなければ、設定ページのJSON控え(「JSONを貼り付けて復元」)から復元してください。")
+      + '</span></div></div>';
+  }
+  el.innerHTML = h;
+}
+
+function renderNotices() {
+  var h = "";
+  // 控えの状態表示(2026-07-20補強・壁打ち補強案1,2): 常時表示+段階化(7日で黄・60日で赤)。
+  // 推奨する控えは、丸ごと戻せる「JSON控え」に統一。
+  // 「控えの後の記帳」は、記帳の日付が最終控え日より後のものを数えた概算(日付ベースの目安)
+  if (state.entries.length > 0) {
+    var backupDays = state.lastBackup
+      ? Math.floor((new Date(todayStr()) - new Date(state.lastBackup)) / 86400000)
+      : null;
+    var cnt = 0, sum = 0;
+    state.entries.forEach(function (e) {
+      if (!state.lastBackup || String(e.date || "") > state.lastBackup) { cnt++; sum += entryOwn(e); }
+    });
+    var risk = cnt > 0 ? "控えの後の記帳 " + cnt + "件(自分負担 " + yenDisp(sum) + ")は、まだこの端末にしかありません。" : "";
+    var advice = "週1回(月曜が控えの日)、設定ページの「JSONをコピー」で、Googleドライブやメールなど端末の外へ控えてください(帳簿は7年保存が原則)。";
+    if (backupDays === null) {
+      h += '<div class="notice notice-warn"><div class="n-head"><span class="warn-ic sm">!</span><span>' + esc("まだ控え(バックアップ)を取っていません。" + risk + " " + advice) + '</span></div></div>';
+    } else if (backupDays >= 60) {
+      h += '<div class="notice notice-error"><div class="n-head"><span class="warn-ic sm">!</span><span>' + esc("最後の控えから" + backupDays + "日経っています。" + risk + " 今すぐ設定ページの「JSONをコピー」で、端末の外へ控えを取ってください。") + '</span></div></div>';
+    } else if (backupDays >= 7) {
+      h += '<div class="notice notice-warn"><div class="n-head"><span class="warn-ic sm">!</span><span>' + esc("最後の控えから" + backupDays + "日経っています。" + risk + " " + advice) + '</span></div></div>';
+    } else {
+      h += '<div class="notice notice-info" style="font-size:14px;">' + esc("最後の控え: " + state.lastBackup + "(" + backupDays + "日前)。" + risk) + '</div>';
+    }
+  }
+  if (ui.saveError) {
+    h += '<div class="notice notice-error"><div class="n-head"><span class="warn-ic sm">!</span><span>' + esc(ui.saveError) + '</span></div>'
+      + '<button class="inline-act" data-act="retry-save">今すぐ再保存する</button></div>';
+  }
+  if (ui.error) {
+    h += '<div class="notice notice-error"><div class="n-head"><span class="warn-ic sm">!</span><span>' + esc(ui.error) + '</span></div></div>';
+  }
+  if (ui.info) {
+    h += '<div class="notice notice-info">' + esc(ui.info) + '</div>';
+    ui.info = "";
+  }
+  document.getElementById("notices").innerHTML = h;
+}
+
+function renderImportPanel() {
+  var el = document.getElementById("importPanel");
+  if (!ui.importOpen) { el.innerHTML = ""; return; }
+  el.innerHTML =
+    '<div class="panel">'
+    + '<div class="hint">チャットでレシート写真を読み取ってもらった結果を、そのまま貼り付けてください(複数行OK)。<br>形式: 日付,店名,金額,勘定科目,支払方法,取引先,メモ<br>割り勘・立替・会社経費・人数・幽霊は末尾に ,請求分,請求先,人数,幽霊 の4列(8〜11列目・任意)を足せます(使わない列はカンマだけ置いて位置を揃えます)。11列目に 1 を入れた行は幽霊(確定申告用CSVに出さない行)として取り込まれます(PayPay等の受取=立替回収は マイナス金額+11列目=1)。請求先が複数のときは「A社/B社」のように半角「/」区切りで書くと、請求分が均等に配分されます(端数は先頭)。</div>'
+    + '<textarea id="importText" style="height:90px" placeholder="2026-07-18,セブンイレブン,540,会議費,現金,,コーヒー打合せ" data-input="import-text"></textarea>'
+    + '<button class="act" data-act="import-lines">取り込む</button>'
+    + '</div>';
+  var ta = document.getElementById("importText");
+  if (ta) ta.value = ui.importText;
+}
+
+function renderBulk() {
+  var el = document.getElementById("bulkArea");
+  if (state.pendings.length < 2) { ui.bulkConfirm = false; el.innerHTML = ""; return; }
+  if (!ui.bulkConfirm) {
+    el.innerHTML = '<div class="bulk-bar"><button class="btn bulk-btn" data-act="bulk-open">まとめて承認(' + state.pendings.length + '件)</button></div>';
+    return;
+  }
+  var list = bulkCandidates();
+  var total = 0, negCount = 0, negTotal = 0, billTotal = 0;
+  list.forEach(function (e) {
+    total += e.amount;
+    if (e.amount < 0) { negCount++; negTotal += e.amount; }
+    billTotal += billSum(e.bills);
+  });
+  // マイナスにしたことで消える請求(立替)の合計(2026-07-21改修13-1)。
+  // まとめて承認でも、請求が黙って消えないよう金額を出す
+  var lostBill = 0;
+  state.pendings.forEach(function (p) {
+    var a = parseAmount(p.amount);
+    if (!isNaN(a) && a < 0) lostBill += billsRiskSum(p).sum;
+  });
+  var skipped = state.pendings.length - list.length;
+  el.innerHTML =
+    '<div class="bulk-confirm">'
+    + '<div class="msg"><span class="warn-ic sm">!</span><span><strong>' + list.length + '件・合計 ' + esc(yenDisp(total)) + '</strong> を承認して記帳します。よろしいですか?</span></div>'
+    + (billTotal > 0 ? '<div class="sub" style="color:var(--purple);">うち請求分 ' + esc(yen(billTotal)) + '(自分負担 ' + esc(yenDisp(total - billTotal)) + ')。経費に入るのは自分負担分だけです。</div>' : '')
+    + (negCount > 0 ? '<div class="sub" style="color:var(--warn);">うちマイナス(返金・値引き)が ' + negCount + '件(△' + Math.abs(negTotal).toLocaleString("ja-JP") + ')含まれます。</div>' : '')
+    + (lostBill > 0 ? '<div class="sub" style="color:var(--warn);font-weight:800;">マイナスの記帳に入っていた請求 ' + esc(yen(lostBill)) + ' は消えます。</div>' : '')
+    + (skipped > 0 ? '<div class="sub">店名も金額も無い(または金額が整数でない)' + skipped + '件は記帳せず残します。</div>' : '')
+    + '<div class="sub">内容が不安な場合は「やめる」を押して、1件ずつ確認しながら承認してください。</div>'
+    + '<div class="row"><button class="go" data-act="bulk-go">承認する</button>'
+    + '<button class="stop" data-act="bulk-stop">やめる</button></div>'
+    + '</div>';
+}
+
+function sourceLabel(p) {
+  if (p.source === "manual") return "手入力";
+  if (p.source === "import") return "貼り付け取り込み";
+  if (p.source === "rule") return "過去の実績から予想";
+  return "取り込み";
+}
+
+// ---------- 割り勘・立替(複数請求・2026-07-21改修A) ----------
+// scope: "pending"(承認待ちカード) | "draft"(編集フォーム)
+function billTargetOf(scope, id) {
+  return scope === "draft" ? state.editDraft : findPendingById(id);
+}
+// 請求先チップのタップ(選択/解除)。選択時は 1人あたり額(総額÷人数の切り捨て)を自動セットする。
+// 選べるのは最大 人数−1 名(人数1のときは1名=会社への全額請求などのため)。端数は自分負担に寄る
+function billToToggle(scope, id, name) {
+  var t = billTargetOf(scope, id);
+  if (!t) return;
+  var key = scope === "draft" ? "__draft__" : id;
+  if (!Array.isArray(t.bills)) t.bills = [];
+  var bills = t.bills;
+  var idx = -1;
+  for (var i = 0; i < bills.length; i++) { if (bills[i].to === name) { idx = i; break; } }
+  if (idx >= 0) {
+    bills.splice(idx, 1); // もう一度タップで解除
+  } else {
+    var p = parsePersons(t.persons);
+    var cap = Math.max(1, p - 1);
+    if (bills.length >= cap) {
+      ui.error = "請求先は最大 " + cap + " 名(人数−1名。人数1のときは1名)までです。先に人数を増やすか、他の請求先を外してください。";
+      render();
+      return;
+    }
+    var amt = parseAmount(t.amount);
+    var auto = "";
+    if (!isNaN(amt) && amt > 0) auto = String(Math.floor(amt / p)); // 1人あたり=総額÷人数の切り捨て
+    bills.push({ to: name, amount: auto, status: "unpaid", paidDate: "" });
+  }
+  ui.billOpen[key] = true;
+  ui.error = "";
+  markDirty();
+  render();
+}
+// 「全額(会社など)」: 選択中の請求先1名に総額をセット(bills=[{to:会社名, amount:総額}]。自分負担0円)
+function billFull(scope, id) {
+  var t = billTargetOf(scope, id);
+  if (!t) return;
+  var amt = parseAmount(t.amount);
+  if (isNaN(amt) || amt <= 0) {
+    ui.error = "先に金額(総額)を正の整数で入力してから、「全額」ボタンを使ってください。";
+    render();
+    return;
+  }
+  var bills = Array.isArray(t.bills) ? t.bills : (t.bills = []);
+  if (bills.length === 0) {
+    ui.error = "先に請求先チップから、請求する相手(会社名など)を1つ選んでください。";
+    render();
+    return;
+  }
+  if (bills.length >= 2) {
+    ui.error = "「全額」は請求先が1名のときに使えます(全額をひとりに請求するボタンです)。請求先を1つにしてから押してください。";
+    render();
+    return;
+  }
+  bills[0].amount = String(amt);
+  ui.billOpen[scope === "draft" ? "__draft__" : id] = true;
+  ui.error = "";
+  markDirty();
+  render();
+}
+// 新しい請求先名の入力欄をひらく/確定する
+function billToAddOpen(scope, id) {
+  var t = billTargetOf(scope, id);
+  if (!t) return;
+  t.billToAdding = true;
+  ui.billOpen[scope === "draft" ? "__draft__" : id] = true;
+  markDirty();
+  render();
+}
+function billToAddGo(scope, id) {
+  var t = billTargetOf(scope, id);
+  if (!t) return;
+  var name = cleanBillName(t.billToNew);
+  if (!name) {
+    ui.error = "新しい請求先の名前を入力してください。";
+    render();
+    return;
+  }
+  t.billToNew = "";
+  t.billToAdding = false;
+  var exists = (t.bills || []).some(function (b) { return b.to === name; });
+  if (exists) { markDirty(); render(); return; }
+  billToToggle(scope, id, name); // 選択と同じ流れで追加(人数上限チェック・1人あたり自動セット込み)
+}
+// ---------- 回収行の自動反映(2026-07-21改修11-7、検証8で11-8に改訂) ----------
+// 回収行 = 幽霊ON + 金額マイナス + 取引先あり の記帳(PayPay等で立替金を受け取った記録)。
+// その取引先への未回収の請求(bills)を、古い日付順に「回収額(絶対値)ぶん」だけ自動で消し込む。
+//
+// 【二重反映を防ぐ考え方】差し引きを1回きりの操作にせず、毎回ゼロから計算し直す(冪等)。
+//   ① 自動で消し込んだ印(paidBy=回収行のid)が付いた bills を、いったんすべて未回収に戻す
+//   ② 回収行を日付順に見て、対象の未回収 bills へ古い順に割り当て直す
+// これにより、再描画・再読み込み・何度呼んでも結果は同じ(多重に差し引かれない)。
+// 回収行を削除・幽霊解除・金額変更したときも、次の計算で自動的に正しい状態へ戻る。
+//
+// 【日付のきまり(検証8 問題1の修正)】
+//   ・消し込めるのは **回収行の日付以前の立替だけ**。回収日より後の立替には決して割り当てない
+//     (まだ受け取っていないお金が「回収済み」になるのを防ぐ)
+//   ・使い切れなかった回収額は **その場で捨てる**(次回・将来の立替へ繰り越さない)
+//   ・回収日(paidDate)は回収行の日付。対象を「回収日以前の立替」に限るので、
+//     回収日が立替日より前になることはない
+//
+// 【一部回収(検証8 問題2の修正)】
+//   ・請求1件を満額そろえられなくても、足りるぶんだけ充当する(bills[].paidAmt = 回収済み額)
+//   ・未回収残 = 請求額 − 回収済み額。満額に達したときだけ status="paid" にする
+//
+// 【手動操作との併用】
+//   ・手動で回収済みにしたぶんは paidManual に別枠で持つ。①で取り消すのは自動充当ぶんだけ(手動ぶんは残す)
+//   ・自動で消し込んだ bill を手動で「取り消す」と autoSkip=true が付き、以後その bill は自動反映の対象外
+//   ・消し込めるのは実在の請求額までなので、回収済みの合計が立替累計を超えることはない
+//
+// 【手動「回収済みにする」の決まり(2026-07-21改修13-3・検証9 問題3の修正)】
+//   ・手動で回収済みにするのは **未回収残(請求額 − 回収済み額)だけ**。すでに回収行から自動充当されている
+//     ぶんはそのまま残す(paidBy を消さない)
+//   ・こうしないと自動充当ぶんが回収行から押し出され、同じ金額が「回収済み」と「預かり残高」の
+//     両方に数えられてしまう(例: 請求4,333・自動充当4,300 → 手動で満額にすると4,300が預かり残高へ)
+// 回収行の判定(2026-07-21改修13-11・検証10 問題1の修正)。
+// 【幽霊(CSV除外)とは切り離す】幽霊は「確定申告用CSVに出すかどうか」だけを決める印なので、
+// 回収かどうかの判定に使ってはいけない(幽霊をOFFにした瞬間に未回収からの差し引きが止まっていた)。
+// 回収であることは独立した collect フラグで持ち、保存・編集・JSON往復・サニタイズで引き継ぐ。
+function isCollectionEntry(e) {
+  return e && e.collect === true && Number(e.amount) < 0 && String(e.client || "").trim() !== "";
+}
+// 請求1件の回収済み額(満額回収なら請求額そのもの・一部回収なら paidAmt)
+function billPaidAmt(b) {
+  if (!b) return 0;
+  if (b.status === "paid") return Number(b.amount) || 0;
+  var p = Number(b.paidAmt);
+  if (!Number.isSafeInteger(p) || p < 0) return 0;
+  var a = Number(b.amount) || 0;
+  return p > a ? a : p;
+}
+// 請求1件の未回収残 = 請求額 − 回収済み額
+function billRemain(b) {
+  return (Number(b && b.amount) || 0) - billPaidAmt(b);
+}
+// 請求1件のうち「手動で回収済みにした額」(2026-07-21改修13-3)。0〜請求額に丸める
+function billManualAmt(b) {
+  if (!b) return 0;
+  var a = Number(b.amount) || 0;
+  var m = Number(b.paidManual);
+  if (!Number.isSafeInteger(m) || m < 0) return 0;
+  return m > a ? a : m;
+}
+// 手動で「回収済みにする」(2026-07-21改修13-3・検証9 問題3の修正)。
+// 自動充当ぶん(paidBy/paidAmt)はそのまま残し、未回収残だけを手動ぶんとして足す。
+// paidBy を消さないので、回収行の充当が押し出されて預かり残高へ回ることがない
+function markBillPaidManual(b, dateStr) {
+  var amount = Number(b.amount) || 0;
+  var already = billPaidAmt(b);          // いまの回収済み額(自動充当ぶんを含む)
+  var rest = amount - already;           // 未回収残(ここだけを手動で回収済みにする)
+  if (rest < 0) rest = 0;
+  b.paidManual = billManualAmt(b) + rest;
+  b.paidAmt = already + rest;            // = 請求額(満額)
+  b.status = "paid";
+  b.paidDate = dateStr;
+}
+// 回収済みを取り消す。
+// ・手動ぶんがある請求 … 手動で足したぶんだけを取り消す(回収行からの自動充当はこのあと再計算で戻る)
+// ・手動ぶんが無い(自動だけで回収済み)請求 … 以後この請求を自動反映の対象外にする(取消が効かなくなるのを防ぐ)
+function clearBillPaid(b) {
+  var hadManual = billManualAmt(b) > 0;
+  if (!hadManual && b.paidBy) b.autoSkip = true;
+  b.status = "unpaid";
+  b.paidDate = "";
+  b.paidBy = "";
+  b.paidAmt = 0;
+  b.paidManual = 0;
+}
+
+// ---------- 預かり残高(2026-07-21改修12・表示のみ) ----------
+// 相手から多めに受け取った分(=充当先のなかった回収額 collectUnused)を取引先ごとに合計した数字。
+// 【あえて充当しない】自動でも手動でも次の立替には充てない。充ててしまうと、まだ受け取っていない
+//   立替が「回収済み」に見えてしまうため。次回の精算時に、この残高を見て受取額を調整してもらう。
+// 【保存しない】applyCollections が毎回ゼロから作り直す(冪等)。保存データに新しい項目は増やさない。
+// 【別枠の数字】「立替累計 − 回収済み = 未回収残」の式には一切関わらない(未回収残を減らさない)。
+var depositMap = {};
+// 取引先1件の預かり残高
+function depositOf(name) {
+  return depositMap[cleanBillName(name)] || 0;
+}
+// 預かり残高の一覧 [{name, amt}](多い順)。names に配列を渡すとその取引先だけに絞る(空/未指定=すべて)
+function depositList(names) {
+  var only = Array.isArray(names) && names.length > 0
+    ? names.map(function (n) { return cleanBillName(n); }) : null;
+  return Object.keys(depositMap)
+    .filter(function (k) { return depositMap[k] > 0 && (!only || only.indexOf(k) !== -1); })
+    .map(function (k) { return { name: k, amt: depositMap[k] }; })
+    .sort(function (a, b) { return b.amt - a.amt || a.name.localeCompare(b.name); });
+}
+// 預かり残高の合計(names の絞り込みは depositList と同じ)
+function depositTotal(names) {
+  var s = 0;
+  depositList(names).forEach(function (d) { s += d.amt; });
+  return s;
+}
+function applyCollections() {
+  depositMap = {}; // 預かり残高もここでゼロから作り直す(二重計上しない)
+  // ① 自動反映ぶんをいったん取り消す(手動で回収済みにした paidManual は残す・2026-07-21改修13-3)
+  state.entries.forEach(function (e) {
+    (Array.isArray(e.bills) ? e.bills : []).forEach(function (b) {
+      if (!b.paidBy) return;                 // 手動だけの請求はさわらない(手動が優先)
+      var man = billManualAmt(b);            // 手動で回収済みにしたぶんは戻さない
+      b.paidBy = "";
+      b.paidAmt = man;
+      if (man > 0 && man >= (Number(b.amount) || 0)) {
+        b.status = "paid";                   // 手動だけで満額 → 回収日(手動の日付)もそのまま
+      } else {
+        b.status = "unpaid";
+        b.paidDate = "";
+      }
+    });
+    if (e.collectApplied) e.collectApplied = 0;
+  });
+  // ② 回収行を古い順に見て、その取引先の未回収へ割り当て直す
+  var rows = state.entries.filter(isCollectionEntry).slice().sort(function (a, b) {
+    return String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id));
+  });
+  rows.forEach(function (c) {
+    var name = cleanBillName(c.client);
+    var cDate = String(c.date || "");
+    var remain = Math.abs(Number(c.amount) || 0);
+    var applied = 0;
+    var targets = [];
+    state.entries.forEach(function (e) {
+      (Array.isArray(e.bills) ? e.bills : []).forEach(function (b) {
+        // 回収日より後の立替は対象外(まだ受け取っていないお金なので消し込まない)
+        if (String(e.date || "") > cDate) return;
+        if (b.autoSkip === true || cleanBillName(b.to) !== name) return;
+        if (billRemain(b) <= 0) return; // 満額回収済み(手動ぶんを含む)は対象外
+        targets.push({ e: e, b: b });
+      });
+    });
+    targets.sort(function (x, y) {
+      return String(x.e.date).localeCompare(String(y.e.date)) || String(x.e.id).localeCompare(String(y.e.id));
+    });
+    targets.forEach(function (t) {
+      if (remain <= 0) return;
+      var rest = billRemain(t.b);
+      var take = remain < rest ? remain : rest; // 足りなければ足りるぶんだけ充当(一部回収)
+      if (take <= 0) return;
+      t.b.paidAmt = billPaidAmt(t.b) + take;
+      t.b.paidBy = c.id;
+      if (t.b.paidAmt >= Number(t.b.amount)) {
+        t.b.status = "paid";
+        t.b.paidDate = cDate;
+      }
+      remain -= take;
+      applied += take;
+    });
+    // 使い切れなかった回収額(remain)は立替へは充てない。取引先ごとの「預かり残高」として表示するだけ
+    c.collectApplied = applied; // 反映済みの印(この回収行が実際に消し込んだ金額)
+    c.collectUnused = remain;   // 充当できなかった額(表示用。桁の打ち間違いに気づく手がかり)
+    if (remain > 0) depositMap[name] = (depositMap[name] || 0) + remain; // 預かり残高へ加算(表示のみ)
+  });
+}
+
+// 回収済みの達成演出(2026-07-21改修11-6): 承認印と同じ様式の「済」スタンプ+対応端末で振動。
+// render() で消えないよう body 直下に別レイヤーで出し、約0.7秒で自分から消える(操作はブロックしない)
+var paidStampTimer = null;
+function showPaidStamp() {
+  try {
+    var old = document.getElementById("paidStampLayer");
+    if (old) old.remove();
+    var layer = document.createElement("div");
+    layer.id = "paidStampLayer";
+    layer.className = "paid-stamp-layer";
+    layer.setAttribute("aria-hidden", "true");
+    layer.innerHTML = '<div class="stamp-mark">済</div>';
+    document.body.appendChild(layer);
+    if (paidStampTimer) clearTimeout(paidStampTimer);
+    paidStampTimer = setTimeout(function () {
+      paidStampTimer = null;
+      var l = document.getElementById("paidStampLayer");
+      if (l) l.remove();
+    }, 700);
+  } catch (e) { /* 演出が出せなくても処理は続ける */ }
+  // 押した感: 対応端末では短い振動(非対応でも何も起きない)
+  try {
+    if (typeof navigator.vibrate === "function") navigator.vibrate(40);
+  } catch (e2) { /* 非対応環境では何もしない */ }
+}
+// 回収済みにする/取り消す(bills の明細単位)。※経費集計(自分負担)には一切影響しない
+function setBillStatus(id, bidx, paid) {
+  for (var i = 0; i < state.entries.length; i++) {
+    var e = state.entries[i];
+    if (e.id === id) {
+      var b = (e.bills || [])[bidx];
+      if (!b) return;
+      // 回収済みにする = 未回収残だけを手動ぶんとして加える(自動充当ぶんはそのまま・2026-07-21改修13-3)。
+      // 取り消す = 手動・自動どちらのぶんも消して未回収に戻す(以後この請求は自動反映の対象外)
+      if (paid) markBillPaidManual(b, todayStr());
+      else clearBillPaid(b);
+      break;
+    }
+  }
+  markDirty();
+  render();
+  renderPage();
+  if (paid) showPaidStamp(); // 達成演出(取り消しのときは出さない)
+}
+// 請求先ごとにまとめて回収済みにする(月ページ内。label は表示名。「(請求先なし)」も対象にできる)
+function markBillPaidGroup(label, month) {
+  var today = todayStr();
+  var hit = 0;
+  state.entries.forEach(function (e) {
+    if (String(e.date || "").slice(0, 7) !== month) return;
+    (e.bills || []).forEach(function (b) {
+      if (b.status !== "paid" && (b.to || "(請求先なし)") === label) {
+        // まとめ回収も未回収残だけを手動ぶんに加える(自動充当は押し出さない・2026-07-21改修13-3)
+        markBillPaidManual(b, today);
+        hit++;
+      }
+    });
+  });
+  markDirty();
+  render();
+  renderPage();
+  if (hit > 0) showPaidStamp(); // 達成演出(請求先まとめ回収)
+}
+// 月まとめ回収(2026-07-21改修C): collect=true でその月の未回収明細を全件回収済み(回収日=当日)に。
+// collect=false(取消)はその月の回収済み明細を全件未回収に戻す(個別に回収済みにした分も戻る=確認表示で明記)
+function collectMonth(month, collect) {
+  var today = todayStr();
+  var hit = 0;
+  state.entries.forEach(function (e) {
+    if (String(e.date || "").slice(0, 7) !== month) return;
+    (e.bills || []).forEach(function (b) {
+      if (collect && b.status !== "paid") {
+        // 月まとめ回収も未回収残だけを手動ぶんに加える(自動充当は押し出さない・2026-07-21改修13-3)
+        markBillPaidManual(b, today);
+        hit++;
+      } else if (!collect && b.status === "paid") {
+        clearBillPaid(b);
+      }
+    });
+  });
+  ui.billsCollectConfirm = null;
+  markDirty();
+  render();
+  renderPage();
+  if (collect && hit > 0) showPaidStamp(); // 達成演出(月まとめ回収。取消のときは出さない)
+}
+// 自分負担表示(入力中はこの部分だけ差し替える)
+function billOwnId(scope, id) { return scope === "draft" ? "billOwn-draft" : "billOwn-" + id; }
+function billOwnHtml(obj) {
+  var amt = parseAmount(obj.amount);
+  if (isNaN(amt) || amt < 0) return ''; // 金額が入るまでは何も出さない(2026-07-21改修12-3)
+  var sum = 0, bad = false;
+  (obj.bills || []).forEach(function (b) {
+    var raw = String(b.amount == null ? "" : b.amount).trim();
+    if (raw === "") return;
+    var n = parseAmount(raw);
+    if (isNaN(n) || n < 0) { bad = true; return; }
+    sum += n;
+  });
+  if (bad) return '<div class="bill-own" style="color:var(--warn);">請求分に整数でない値があります(このままでは承認・保存できません)。</div>';
+  if (sum > amt) return '<div class="bill-own" style="color:var(--warn);">請求分の合計 ' + esc(yen(sum)) + ' が総額 ' + esc(yen(amt)) + ' を超えています(このままでは承認・保存できません)。</div>';
+  return '<div class="bill-own">自分負担: ' + esc(yen(amt - sum)) + '(総額 ' + esc(yen(amt)) + ' − 請求分の合計 ' + esc(yen(sum)) + ')</div>';
+}
+// 「請 割り勘・立替」欄のHTML(承認待ちカードと編集フォームで共用)。既定は閉。
+// 紫=請求系(2px枠+紫背景+見出しラベル「請」)、白=通常入力、の三重区別(2026-07-21改修E)
+function billSectionHtml(scope, id, obj, dis) {
+  var key = scope === "draft" ? "__draft__" : id;
+  var did = scope === "draft" ? "" : ' data-id="' + esc(id) + '"';
+  var amt = parseAmount(obj.amount);
+  var isNeg = !isNaN(amt) && amt < 0;
+  if (isNeg) {
+    // マイナス記帳(返金・値引き)は請求なし固定(入力欄ごと出さない)。
+    // 入っていた請求は消えるので、消える金額を1行で見せる(2026-07-21改修13-1)
+    var risk = billsRiskSum(obj);
+    if (risk.sum > 0) {
+      return '<div class="bill-note" style="margin-bottom:8px;color:var(--warn);font-weight:800;">'
+        + 'マイナスにすると請求 ' + esc(yen(risk.sum)) + '(' + risk.count + '名)は消えます。</div>';
+    }
+    return '<div class="bill-note" style="margin-bottom:8px;">マイナスの記帳では割り勘・立替は使いません。</div>';
+  }
+  var bills = Array.isArray(obj.bills) ? obj.bills : [];
+  var sum = billSum(bills);
+  var hasBill = bills.length > 0;
+  var open = (key in ui.billOpen) ? !!ui.billOpen[key] : hasBill;
+  var headLabel = '<span><span class="bill-badge">請</span>割り勘・立替(相手に請求する分)</span>';
+  if (!open) {
+    return '<button class="bill-toggle" data-act="bill-toggle" data-key="' + esc(key) + '" data-open="0"' + dis + '>'
+      + headLabel
+      + '<span>' + (hasBill ? '<span class="sum">請求 ' + bills.length + '名・' + esc(yen(sum)) + '</span> ' : '') + 'ひらく ▾</span></button>';
+  }
+  // 請求先チップ: 取引先リスト+選択中の請求先(未登録名も含む)の和集合
+  var names = state.clientList.slice();
+  bills.forEach(function (b) { if (b.to && names.indexOf(b.to) === -1) names.push(b.to); });
+  names.sort();
+  var chipsHtml = names.map(function (nm) {
+    var on = bills.some(function (b) { return b.to === nm; });
+    return '<button class="billto-chip' + (on ? " on" : "") + '" data-act="billto-chip" data-scope="' + scope + '" data-name="' + esc(nm) + '"' + did + dis + '>' + (on ? "✓ " : "") + esc(nm) + '</button>';
+  }).join("");
+  chipsHtml += '<button class="billto-chip add" data-act="billto-add-open" data-scope="' + scope + '"' + did + dis + '>＋ 新しい請求先</button>';
+  // 選択中の請求先ごとの金額入力(個別調整可)
+  var rowsHtml = bills.map(function (b, ix) {
+    return '<div class="bill-row-edit">'
+      + '<span class="nm">' + esc(b.to || "(請求先なし)") + (b.status === "paid" ? ' <span class="paid-note">回収済み</span>' : '') + '</span>'
+      + '<input type="text" inputmode="numeric" class="num" value="' + esc(b.amount == null ? "" : b.amount) + '" aria-label="' + esc(b.to || "請求先なし") + 'への請求分(円・整数)" data-input="bill-amt" data-scope="' + scope + '" data-bidx="' + ix + '"' + did + dis + '>'
+      + '<button class="rm" data-act="billto-chip" data-scope="' + scope + '" data-name="' + esc(b.to) + '"' + did + dis + ' aria-label="この請求先を外す">✕</button>'
+      + '</div>';
+  }).join("");
+  return '<div class="bill-box">'
+    + '<button class="bill-toggle head" data-act="bill-toggle" data-key="' + esc(key) + '" data-open="1"' + dis + '>'
+    + headLabel + '<span>とじる ▴</span></button>'
+    + ((obj.category !== "会議費" && obj.category !== "接待交際費")
+      ? '<div class="p-label">人数(1人あたりの計算に使います)</div>' + personsChipsHtml(scope, id, obj, dis)
+      : '')
+    + '<div class="p-label">請求先(複数選べます)</div>'
+    + '<div class="billto-chips">' + chipsHtml + '</div>'
+    + (obj.billToAdding
+      ? '<div class="bill-row-edit"><input type="text" list="clientList" placeholder="新しい請求先名を入力" value="' + esc(obj.billToNew || "") + '" data-input="' + scope + '" data-field="billToNew"' + did + dis + '>'
+        + '<button class="rm add-go" data-act="billto-add-go" data-scope="' + scope + '"' + did + dis + '>追加</button></div>'
+      : '')
+    + rowsHtml
+    + (hasBill
+      ? '<div class="quick"><button data-act="bill-full" data-scope="' + scope + '"' + did + dis + '>全額(会社に請求など)</button></div>'
+      : '')
+    + '<div id="' + billOwnId(scope, id) + '">' + billOwnHtml(obj) + '</div>'
+    // 説明は1行だけ(2026-07-21改修12-3)。くわしい決まりは設定ページに書いてあります
+    + '<div class="bill-note">タップで1人あたりが入ります。金額は直せます。</div>'
+    + '</div>';
+}
+
+// ---------- 人数選択と割り勘表示(2026-07-21追加、2026-07-21改修Bで自動セット化) ----------
+// 科目が会議費/接待交際費のときだけ人数欄を表示。判定は「総額 ≦ 5,000×人数」の整数比較のみ。
+// 改修B: 人数を選んだとき会議費⇄接待交際費を自動セットする(旧「判定提案ボタン」は廃止。手動選択が最優先)
+function findPendingById(id) {
+  for (var i = 0; i < state.pendings.length; i++) {
+    if (state.pendings[i].id === id) return state.pendings[i];
+  }
+  return null;
+}
+function personsCalcId(scope, id) {
+  return scope === "draft" ? "personsCalc-draft" : "personsCalc-" + id;
+}
+// 計算・判定部分のHTML(金額・人数の入力中は、この部分だけを差し替えて更新する)
+function personsCalcHtml(scope, id, obj, dis) {
+  var amt = parseAmount(obj.amount);
+  if (isNaN(amt) || amt <= 0) {
+    return ''; // 金額が入るまでは何も出さない(2026-07-21改修12-3: カード上の文章を減らす)
+  }
+  var p = parsePersons(obj.persons);
+  var per = Math.floor(amt / p);                 // 1人あたり = 総額÷人数 の切り捨て(端数は自分負担に寄る)
+  var isKaigi = amt <= 5000 * p;                 // 判定は 総額 ≦ 5,000×人数 の整数比較のみ
+  var judged = isKaigi ? "会議費" : "接待交際費";
+  var h = '<div class="p-calc num">1人あたり ' + esc(yen(per)) + '(' + p + '名)</div>'
+    + (isKaigi
+      ? '<div class="p-judge j-kaigi">→ <span class="shape">●</span>会議費の範囲(5,000円/人以下)</div>'
+      : '<div class="p-judge j-settai">→ <span class="shape">■</span>接待交際費(5,000円/人超)</div>');
+  if (obj.category !== judged) {
+    h += obj.catManual === true
+      ? '<div class="p-note">科目は手動選択(' + esc(obj.category) + ')を優先。</div>'
+      : '<div class="p-note">人数を押し直すと「' + catInfo(judged).shape + ' ' + esc(judged) + '」に変わります。</div>';
+  }
+  return h;
+}
+// 人数チップ(1〜9+10〜と直接入力)のHTML。人数欄(会食科目)と「割り勘・立替」欄で共用
+function personsChipsHtml(scope, id, obj, dis) {
+  var did = scope === "draft" ? "" : ' data-id="' + esc(id) + '"';
+  var pRaw = obj.persons == null ? "1" : String(obj.persons);
+  var pNum = parsePersons(pRaw);
+  var inputOpen = !!obj.personsAdding || pNum > 9;
+  var chips = "";
+  for (var n = 1; n <= 9; n++) {
+    chips += '<button class="p-chip' + (!inputOpen && pNum === n ? " on" : "") + '" data-act="persons-chip" data-scope="' + scope + '" data-n="' + n + '"' + did + dis + '>' + n + '</button>';
+  }
+  chips += '<button class="p-chip' + (inputOpen ? " on" : "") + '" data-act="persons-other" data-scope="' + scope + '"' + did + dis + '>10〜</button>';
+  return '<div class="p-chips">' + chips + '</div>'
+    + (inputOpen
+      ? '<label class="field"><span>人数を直接入力(整数)</span><input type="text" inputmode="numeric" class="num" value="' + esc(pRaw) + '" data-input="' + scope + '" data-field="persons"' + did + dis + '></label>'
+      : '');
+}
+// 金額欄のHTML(承認待ちカード・編集フォーム共用。2026-07-21改修12-2)。
+// スマホのテンキーには「−」が無いため、欄の右に符号を反転する「±」ボタンを置く。
+// inputmode は numeric のまま(数字キーで入力し、マイナスはボタンで付け外しする)
+function amountFieldHtml(scope, id, obj, dis) {
+  var did = scope === "draft" ? "" : ' data-id="' + esc(id) + '"';
+  var raw = String(obj.amount == null ? "" : obj.amount).trim();
+  var isNeg = raw.charAt(0) === "-" || raw.charAt(0) === "−" || raw.charAt(0) === "－";
+  var lbl = isNeg ? "マイナスをはずす" : "マイナスにする";
+  return '<label class="field"><span>金額(円・整数)'
+    + (isNeg ? ' <span class="sign-note">マイナス入力中</span>' : '') + '</span>'
+    + '<div class="amt-wrap">'
+    + '<input type="text" inputmode="numeric" class="num" value="' + esc(raw) + '"'
+    + (obj.collect === true ? ' placeholder="-3452"' : '')
+    + ' data-input="' + scope + '" data-field="amount"' + did + dis + '>'
+    + '<button type="button" class="sign-btn' + (isNeg ? ' on' : '') + '" data-act="sign-flip" data-scope="' + esc(scope) + '"'
+    + did + dis + ' aria-label="' + lbl + '" title="' + lbl + '">±</button>'
+    + '</div></label>';
+}
+// 金額の符号を反転する(±ボタン)。文字列のまま「-」を付け外しするだけで、
+// 整数チェック・計算は従来どおり parseAmount 側で行う(金額の桁は一切変えない)
+function signFlip(scope, id) {
+  var t = billTargetOf(scope, id);
+  if (!t) return;
+  var raw = String(t.amount == null ? "" : t.amount).trim();
+  var head = raw.charAt(0);
+  if (raw === "") t.amount = "-";                                   // 空欄なら「-」だけ置いて、続けて数字を打てるようにする
+  else if (head === "-" || head === "−" || head === "－") t.amount = raw.slice(1);
+  else t.amount = "-" + raw;
+  ui.error = "";
+  markDirty();
+  render();
+  // 金額欄にカーソルを戻す(続けて入力できるように)
+  try {
+    var sel = scope === "draft"
+      ? '[data-input="draft"][data-field="amount"]'
+      : '[data-input="pending"][data-field="amount"][data-id="' + id + '"]';
+    var el = document.querySelector(sel);
+    if (el && el.focus) { el.focus(); if (el.setSelectionRange) el.setSelectionRange(el.value.length, el.value.length); }
+  } catch (e) { /* 取得できなくても動作に影響しない */ }
+}
+// 人数欄全体のHTML(承認待ちカード・編集フォーム共用。会議費/接待交際費のときだけ)
+function personsSectionHtml(scope, id, obj, dis) {
+  if (obj.category !== "会議費" && obj.category !== "接待交際費") return "";
+  var amt = parseAmount(obj.amount);
+  if (!isNaN(amt) && amt < 0) return ""; // マイナス(返金・値引き)の行では表示しない
+  return '<div class="persons-box">'
+    + '<div class="p-label">人数</div>'
+    + personsChipsHtml(scope, id, obj, dis)
+    + '<div id="' + personsCalcId(scope, id) + '">' + personsCalcHtml(scope, id, obj, dis) + '</div>'
+    + '</div>';
+}
+// 人数連動の自動セット(2026-07-21改修B): 総額≦5,000×人数 の整数比較で会議費⇄接待交際費を切り替える。
+// この2科目間のみ(他の科目は人数を変えても勝手に変わらない)。手動で科目を選んだ行では以降自動セットしない。
+// 自動セットした行は catAuto=true になり、承認・保存時の店名→科目学習から除外される(学習の振動防止)
+function autoSetCat(obj) {
+  if (!obj || obj.catManual === true) return;
+  if (obj.category !== "会議費" && obj.category !== "接待交際費") return;
+  var amt = parseAmount(obj.amount);
+  if (isNaN(amt) || amt <= 0) return;
+  var judged = amt <= 5000 * parsePersons(obj.persons) ? "会議費" : "接待交際費";
+  if (obj.category !== judged) {
+    obj.category = judged;
+    obj.catAuto = true;
+  }
+}
+// 手動での科目選択(仕分けチップ・科目プルダウン)。以降この行では自動セットしない。学習は従来どおり対象
+function setCategoryManual(scope, id, cat) {
+  var t = billTargetOf(scope, id);
+  if (!t) return;
+  t.category = cat;
+  t.catManual = true;
+  t.catAuto = false;
+  markDirty();
+  render();
+}
+// 人数チップの操作(人数を選んだ瞬間に自動セット判定を行う)
+function personsSet(scope, id, n) {
+  var t = billTargetOf(scope, id);
+  if (!t) return;
+  t.persons = String(n);
+  t.personsAdding = false;
+  autoSetCat(t);
+  markDirty();
+  render();
+}
+function personsOther(scope, id) {
+  if (scope === "draft") updDraft("personsAdding", true);
+  else updPending(id, "personsAdding", true);
+  render();
+}
+
+// 承認待ちカード1枚のHTML。stamped=true は承認アニメ表示用(記帳確定済み・全操作無効)
+function pendingCardHtml(p, stamped) {
+  var dis = stamped ? " disabled" : "";
+  var did = ' data-id="' + esc(p.id) + '"';
+  if (!stamped && ui.collapsed[p.id]) {
+    var amt = parseAmount(p.amount);
+    var amtHtml = "";
+    if (!isNaN(amt) && amt !== 0) {
+      amtHtml = "・" + (amt < 0 ? '<span class="amount-minus">' + esc(yenDisp(amt)) + '</span>' : esc(yenDisp(amt)));
+    }
+    return '<button class="pending-collapsed" data-act="fold-open"' + did + '>'
+      + '<span class="left"><span class="warn-ic sm">!</span>'
+      + '<span class="tag">未承認</span>'
+      + '<span class="name">' + esc(p.store || "(店名未入力)") + amtHtml + '</span></span>'
+      + '<span class="open-label">ひらく</span>'
+      + '</button>';
+  }
+  var h = '<div class="pending-card">'
+    + '<div class="pending-head">'
+    + '<span class="pending-title"><span class="warn-ic">!</span>承認待ち</span>'
+    + '<span style="display:flex;align-items:center;gap:8px;">'
+    + '<span class="pending-source' + (p.source === "rule" ? " rule" : "") + '">' + esc(sourceLabel(p)) + '</span>'
+    + '<button class="fold-btn" data-act="fold-close"' + did + dis + '>たたむ</button>'
+    + '</span></div>'
+    // 回収の記録は画面上の「💴 回収を記録」から始める入り口方式に変更(2026-07-21改修13-10 ユーザー指示)。
+    // カードの途中で回収モードに変わる経路をなくし、「手入力が問答無用で立替扱いになる」ことを防ぐ
+    // 回収モードの説明は1行だけ(2026-07-21改修12-3)。くわしくは設定ページ。
+    // 金額をマイナスにする手順は、この1行に常時入れておく(2026-07-21改修13-5)。
+    // 画面上部の案内は次の操作で消えてしまい、プラスのまま承認する事故につながっていた
+    + (p.collect === true
+      ? '<div class="neg-confirm" style="border-style:solid;border-width:2px;margin-bottom:8px;">'
+        + '立替の回収 — 金額は下の「±」でマイナスに。'
+        + (String(p.client || "").trim()
+          ? '<strong>' + esc(p.client) + '</strong>の未回収から古い順に差し引きます。'
+          : '<strong>取引先で相手を選んでください</strong>(未選択だと差し引きません)。')
+        + '</div>'
+      : '')
+    + '<div class="grid2">'
+    + '<label class="field"><span>日付</span><input type="date" value="' + esc(p.date) + '" data-input="pending" data-field="date"' + did + dis + '></label>'
+    + amountFieldHtml("pending", p.id, p, dis)
+    + '</div>'
+    + '<label class="field"><span>店名</span><input type="text" list="storeList" value="' + esc(p.store) + '"'
+    + (p.collect === true ? ' placeholder="' + esc((String(p.client || "").trim() || "○○さん") + "から回収") + '"' : '')
+    + ' data-input="pending" data-field="store"' + did + dis + '></label>'
+    + '<div class="cat-chips">'
+    + getChipList().map(function (c) {
+      var ci = catInfo(c.cat);
+      var onCls = "";
+      if (p.category === c.cat) onCls = c.cat === "会議費" ? " on-kaigi" : (c.cat === "接待交際費" ? " on-settai" : " on");
+      return '<button class="cat-chip' + onCls + '" data-act="cat-chip" data-name="' + esc(c.cat) + '"' + did + dis + '>'
+        + '<span class="t"><span class="shape">' + ci.shape + '</span>' + esc(c.cat) + '</span>'
+        + (c.sub ? '<span class="s">' + esc(c.sub) + '</span>' : '')
+        + '</button>';
+    }).join("")
+    + '</div>'
+    + '<label class="field"><span>勘定科目</span>'
+    + catSelectHtml(p.category, 'data-change="pending" data-field="category"' + did + dis + catClassAttr(p.category)) + '</label>'
+    + '<label class="field"><span>支払方法</span>'
+    + selectHtml(PAYMENTS, p.payment, 'data-change="pending" data-field="payment"' + did + dis) + '</label>'
+    + '<label class="field"><span>取引先・案件(任意)</span>'
+    + (p.clientAdding
+      ? '<input type="text" list="clientList" placeholder="新しい取引先名を入力" value="' + esc(p.client || "") + '" data-input="pending" data-field="client"' + did + dis + '>'
+      : clientSelectHtml(p.client || "", 'data-change="pending-client"' + did + dis))
+    + '</label>'
+    + personsSectionHtml("pending", p.id, p, dis)
+    + billSectionHtml("pending", p.id, p, dis)
+    + '<label class="field" style="margin-bottom:12px;"><span>メモ</span><input type="text" value="' + esc(p.memo) + '"'
+    // 会食系の科目のときは人数・相手の記録を促す(税務調査時の説明材料になる)
+    + ((p.category === "会議費" || p.category === "接待交際費") ? ' placeholder="例: 4名・○○社様"' : '')
+    + ' data-input="pending" data-field="memo"' + did + dis + '></label>'
+    // 幽霊(CSV除外)の切り替え(2026-07-21改修13-10): ON/OFF どちらの状態でも出す。
+    // ONのときは気づかないうちにCSVから消えることを防ぎ、OFFのときは後から付けられるようにする
+    + (p.ghost === true
+      ? '<button class="ghost-btn on" data-act="ghost-toggle-pending"' + did + dis + '>👻 CSV除外 ON(押すと解除)</button>'
+      : '<button class="ghost-btn" data-act="ghost-toggle-pending"' + did + dis + '>👻 CSVから除外する</button>');
+  if (!stamped && ui.negConfirmId === p.id) {
+    var namt = parseAmount(p.amount);
+    var nabs = isNaN(namt) ? 0 : Math.abs(namt);
+    // いま画面に出す金額を控えておき、承認確定時に最新の入力値と一致するか再検証する
+    ui.negConfirmAmt = isNaN(namt) ? null : namt;
+    // 消える請求(立替)を必ず金額つきで見せてから確定させる(2026-07-21改修13-1)
+    var nrisk = billsRiskSum(p);
+    ui.negConfirmBill = nrisk.sum;
+    var billWarn = nrisk.sum > 0
+      ? '<div class="bill-lost"><span class="warn-ic sm">!</span><span>'
+        + esc((nrisk.names.length ? nrisk.names.join("・") + "への" : "") + "請求 " + yen(nrisk.sum) + "(" + nrisk.count + "名)も一緒に消えます。")
+        + '</span></div>'
+      : '';
+    var goLabel = nrisk.sum > 0 ? "請求を消してマイナスで記帳する" : "マイナスで記帳する";
+    // 回収の記録(collect)のときは文言を回収用に変える(2026-07-21改修11-4)
+    h += p.collect === true
+      ? '<div class="neg-confirm"><strong>立替の回収として記録します。</strong>受け取った <strong>' + esc(yen(nabs)) + '</strong> を'
+        + '台帳に <strong class="amount-minus">△' + esc(nabs.toLocaleString("ja-JP")) + '</strong> として残します。'
+        + (p.ghost === true ? '幽霊(CSV除外)がONなので、確定申告用CSVには出ません。' : '<strong>幽霊(CSV除外)がOFFです。</strong>このままだと確定申告用CSVに出ます。')
+        + 'よろしいですか?'
+        + billWarn
+        + '<div class="row"><button class="go" data-act="approve"' + did + '>' + esc(nrisk.sum > 0 ? "請求を消して回収として記帳する" : "回収として記帳する") + '</button>'
+        + '<button class="stop" data-act="neg-cancel">やめる</button></div>'
+        + '</div>'
+      : '<div class="neg-confirm">返金・値引きとして <strong>マイナス ' + esc(yen(nabs)) + '</strong> を記帳します。'
+        + '台帳には <strong class="amount-minus">△' + esc(nabs.toLocaleString("ja-JP")) + '</strong> と表示され、集計から差し引かれます。よろしいですか?'
+        + billWarn
+        + '<div class="row"><button class="go" data-act="approve"' + did + '>' + esc(goLabel) + '</button>'
+        + '<button class="stop" data-act="neg-cancel">やめる</button></div>'
+        + '</div>';
+  }
+  h += '<div class="pending-foot">'
+    + '<button class="discard-btn" data-act="discard"' + did + dis + '>破棄する</button>'
+    + '<button class="stamp-btn" aria-label="承認して記帳する" data-act="approve"' + did + dis + '>承認</button>'
+    + '</div>'
+    + (stamped ? '<div class="stamp-overlay"><div class="stamp-mark">承</div></div>' : '')
+    + '</div>';
+  return h;
+}
+function renderPendings() {
+  var cards = state.pendings.map(function (p) { return pendingCardHtml(p, false); });
+  if (ui.stampSnapshot) {
+    var idx = Math.min(ui.stampSnapshot.index, cards.length);
+    cards.splice(idx, 0, pendingCardHtml(ui.stampSnapshot.pending, true));
+  }
+  document.getElementById("pendings").innerHTML = cards.join("");
+}
+
+function renderFilters() {
+  var h = "";
+  var clients = getClients();
+  if (clients.length > 0 && state.entries.length > 0) {
+    // 取引先フィルタ(2026-07-21改修11-1): 通常タップ=その1件だけを選択(単一選択)/
+    // 2秒の長押し=複数選択として追加・解除。「すべて」で解除(従来どおり)
+    h += '<div class="tabs">'
+      + '<button class="tab' + (ui.viewClients.length === 0 ? " on" : "") + '" data-act="client-tab" data-name="all">すべて</button>'
+      + clients.map(function (c) {
+        var on = ui.viewClients.indexOf(c) !== -1;
+        return '<button class="tab lp-target' + (on ? " on" : "") + '" data-act="client-tab" data-name="' + esc(c) + '">'
+          + (on ? "✓ " : "") + esc(c) + '</button>';
+      }).join("") + '</div>';
+    h += ui.viewClients.length >= 2
+      ? '<div class="multi-note">複数選択中(' + ui.viewClients.length + '件): ' + esc(ui.viewClients.join("・")) + ' — 「すべて」で解除できます</div>'
+      : '<div class="multi-note" style="color:var(--sub);font-weight:700;">取引先はタップで1件だけ選択。2秒の長押しで複数選択(追加・解除)できます。</div>';
+  }
+  var years = getYears();
+  if (years.length > 1) {
+    h += '<div class="tabs">' + ["all"].concat(years).map(function (y) {
+      return '<button class="tab' + (ui.viewYear === y ? " on" : "") + '" data-act="year-tab" data-name="' + esc(y) + '">'
+        + (y === "all" ? "全期間" : esc(y) + "年") + '</button>';
+    }).join("") + '</div>';
+  }
+  document.getElementById("filters").innerHTML = h;
+}
+
+function renderBreakdown() {
+  var el = document.getElementById("breakdown");
+  if (state.entries.length === 0) { el.innerHTML = ""; return; }
+  var source = getFilteredEntries().filter(function (e) {
+    return ui.viewYear === "all" || String(e.date || "").indexOf(ui.viewYear) === 0;
+  });
+  var by = {};
+  // 自分負担ベース(総額−Σ請求分)で集計する。確定申告への転記はこの数字を使う
+  var ghostSum = 0;
+  source.forEach(function (e) {
+    by[e.category] = (by[e.category] || 0) + entryOwn(e);
+    if (e.ghost === true) ghostSum += entryOwn(e); // 幽霊(2026-07-21改修D): 集計には含み、注記を出す
+  });
+  var rows = Object.keys(by).map(function (k) { return [k, by[k]]; })
+    .sort(function (a, b) { return b[1] - a[1]; });
+  var title = (ui.viewClients.length === 0 ? "科目別集計"
+    : (ui.viewClients.length === 1 ? esc(ui.viewClients[0]) + "の科目別集計" : "選択中の取引先(" + ui.viewClients.length + "件)の科目別集計"))
+    + (ui.viewYear !== "all" ? "(" + esc(ui.viewYear) + "年)" : "");
+  var h = '<div class="breakdown"><h3>' + title + '</h3>';
+  if (rows.length === 0) {
+    h += '<div style="font-size:14px;color:var(--sub);font-weight:700;">この条件の記帳はまだありません</div>';
+  } else {
+    var total = 0;
+    rows.forEach(function (r) {
+      total += r[1];
+      h += '<div class="row">' + catTagHtml(r[0]) + '<span class="val' + (r[1] < 0 ? ' amount-minus' : '') + '">' + esc(yenDisp(r[1])) + '</span></div>';
+    });
+    h += '<div class="total"><span>合計</span><span class="val' + (total < 0 ? ' amount-minus' : '') + '">' + esc(yenDisp(total)) + '</span></div>';
+    if (ghostSum !== 0) {
+      h += '<div class="ghost-note">うち幽霊(CSV除外) ' + esc(yenDisp(ghostSum)) + ' — CSV書き出しには含まれません</div>';
+    }
+  }
+  h += '</div>';
+  // 立替の月別累計(2026-07-21改修C、改修11-2で「すべて」でも表示)。
+  // 科目別集計は entry.client(取引先列)を見るが、この累計は bills[].to(請求先)を見る(対象フィールドが違う)。
+  // 取引先を選択中 … その請求先だけ / 未選択(すべて)… 全請求先を合算。
+  // 月ごとに 立替累計Σ・回収済みΣ・未回収残(=立替−回収済み)を必ず3つ並べ、最後に全体合計も出す(すべて整数の足し算・引き算のみ)
+  var advAll = ui.viewClients.length === 0;
+  var adv = {};
+  state.entries.forEach(function (e) {
+    (Array.isArray(e.bills) ? e.bills : []).forEach(function (b) {
+      if (!advAll && ui.viewClients.indexOf(b.to || "") === -1) return;
+      var ym = String(e.date || "").slice(0, 7);
+      var a = adv[ym] = adv[ym] || { total: 0, paid: 0 };
+      a.total += b.amount;
+      a.paid += billPaidAmt(b); // 一部回収も回収済みに算入(未回収残 = 請求額 − 回収済み額)
+    });
+  });
+  var advMonths = Object.keys(adv).sort(function (a, b) { return b.localeCompare(a); })
+    .filter(function (ym) { return ui.viewYear === "all" || ym.indexOf(ui.viewYear) === 0; });
+  h += '<div class="breakdown"><h3><span class="bill-badge">請</span>立替の月別累計(請求先: '
+    + (advAll ? "すべて(全請求先の合算)" : esc(ui.viewClients.join("・"))) + ')</h3>';
+  // 預かり残高(2026-07-21改修12): 表示中の請求先ぶんだけ集計する(すべて=全請求先の合算)。
+  // 「立替累計 − 回収済み = 未回収残」の式とは無関係の別枠の数字として、4つ目に並べる
+  var depSel = depositList(advAll ? null : ui.viewClients);
+  var depT = 0;
+  depSel.forEach(function (d) { depT += d.amt; });
+  var depNamesHtml = depSel.map(function (d) {
+    return esc(d.name) + ' ' + esc(yen(d.amt));
+  }).join(' / ');
+  if (advMonths.length === 0) {
+    h += '<div style="font-size:14px;color:var(--sub);font-weight:700;">'
+      + (advAll ? "立替(請求分)を入れた記帳はまだありません" : "選択中の取引先への請求(立替)はまだありません") + '</div>';
+    if (depT > 0) {
+      h += '<div class="dep-line"><span class="dep-badge" aria-hidden="true">預</span>預かり残高 <span class="v">'
+        + esc(yen(depT)) + '</span>(' + depNamesHtml + ')</div>';
+    }
+  } else {
+    var advT = 0, advP = 0;
+    advMonths.forEach(function (ym) {
+      var a = adv[ym];
+      advT += a.total;
+      advP += a.paid;
+      h += '<div class="row"><span style="font-weight:800;">' + esc(monthLabel(ym)) + '</span>'
+        + '<span class="val num" style="font-size:14px;">立替累計 ' + esc(yen(a.total))
+        + '・回収済み ' + esc(yen(a.paid))
+        + '・未回収残 ' + esc(yen(a.total - a.paid)) + '</span></div>';
+    });
+    h += '<div class="total"><span>合計</span><span class="val num" style="font-size:14px;">立替累計 ' + esc(yen(advT))
+      + '・回収済み ' + esc(yen(advP))
+      + '・未回収残 ' + esc(yen(advT - advP))
+      + '・預かり残高 ' + esc(yen(depT)) + '</span></div>';
+    if (depT > 0) {
+      h += '<div class="dep-line"><span class="dep-badge" aria-hidden="true">預</span>預かり残高の内訳 ' + depNamesHtml + '</div>';
+    }
+    h += '<div style="font-size:13px;color:var(--sub);font-weight:700;">未回収残 = 立替累計 − 回収済み。回収してもしなくても、経費の集計(自分負担)には影響しません。<br>'
+      + '<strong>預かり残高</strong>は多めに受け取った分(全期間)で、この式とは<strong>別枠</strong>です。未回収残からは差し引きません(自動では次の立替に充てません)。</div>';
+  }
+  h += '</div>';
+  el.innerHTML = h;
+}
+
+// 月ページ切替(2026-07-21改修C): 「◀ 前の月 | 2026年7月 | 次の月 ▶」+月一覧。months は新しい順
+function monthNavHtml(months, cur, act) {
+  var idx = months.indexOf(cur);
+  var newer = idx > 0 ? months[idx - 1] : null;
+  var older = idx < months.length - 1 ? months[idx + 1] : null;
+  var h = '<div class="month-nav">'
+    + '<button class="nav"' + (older ? ' data-act="' + act + '" data-name="' + esc(older) + '"' : ' disabled') + '>◀ 前の月</button>'
+    + '<span class="cur">' + esc(monthLabel(cur)) + '</span>'
+    + '<button class="nav"' + (newer ? ' data-act="' + act + '" data-name="' + esc(newer) + '"' : ' disabled') + '>次の月 ▶</button>'
+    + '</div>';
+  if (months.length > 1) {
+    h += '<div class="tabs month-list">' + months.map(function (m) {
+      return '<button class="tab' + (m === cur ? " on" : "") + '" data-act="' + act + '" data-name="' + esc(m) + '">' + esc(monthLabel(m)) + '</button>';
+    }).join("") + '</div>';
+  }
+  return h;
+}
+function renderLedger() {
+  var el = document.getElementById("ledger");
+  if (ui.loaded && state.entries.length === 0 && state.pendings.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="title">まだ記帳がありません</div>'
+      + '「レシート手入力」か「読み取り結果を貼り付けて取り込み」から、台帳を育てていきましょう。</div>';
+    return;
+  }
+  var filtered = getFilteredEntries();
+  var byMonth = {};
+  filtered.forEach(function (e) {
+    var ym = String(e.date || "").slice(0, 7) || "不明";
+    (byMonth[ym] = byMonth[ym] || []).push(e);
+  });
+  var allMonths = Object.keys(byMonth).sort(function (a, b) { return b.localeCompare(a); })
+    .filter(function (ym) { return ui.viewYear === "all" || ym.indexOf(ui.viewYear) === 0; });
+  if (allMonths.length === 0) { el.innerHTML = ""; return; }
+  // 月ページ切替(2026-07-21改修C): 1ヶ月区切りで表示。既定はデータのある最新月。
+  // ページを切り替えても各月の合計・年間の科目別集計は変わらない(表示範囲が変わるだけ)
+  var cur = allMonths.indexOf(ui.ledgerMonth) !== -1 ? ui.ledgerMonth : allMonths[0];
+  var h = monthNavHtml(allMonths, cur, "ledger-month");
+  [cur].forEach(function (ym) {
+    var list = byMonth[ym];
+    var total = 0, ghostSum = 0;
+    // 月合計は自分負担ベース(総額−Σ請求分)。各行の表示金額は総額のまま保持する
+    list.forEach(function (e) {
+      total += entryOwn(e);
+      if (e.ghost === true) ghostSum += entryOwn(e);
+    });
+    h += '<section class="month-sec">'
+      + '<div class="month-head"><h2>' + esc(monthLabel(ym)) + '</h2><span class="total' + (total < 0 ? ' amount-minus' : '') + '">' + esc(yenDisp(total)) + '</span></div>'
+      + (ghostSum !== 0 ? '<div class="ghost-note" style="padding:0 2px 6px;">うち幽霊(CSV除外) ' + esc(yenDisp(ghostSum)) + '</div>' : '')
+      + '<div class="ledger-card">';
+    list.forEach(function (e) {
+      var did = ' data-id="' + esc(e.id) + '"';
+      var isGhost = e.ghost === true;
+      // 請求の表示(2026-07-21改修A): Σ請求分+回収状態3値(全回収/一部回収/未回収)
+      var bl = Array.isArray(e.bills) ? e.bills : [];
+      var billLabel = "";
+      if (bl.length > 0) {
+        var paidCnt = 0, partCnt = 0;
+        bl.forEach(function (b) {
+          if (b.status === "paid") paidCnt++;
+          else if (billPaidAmt(b) > 0) partCnt++; // 1件の中の一部回収も「一部回収」に数える
+        });
+        var stTxt = paidCnt === bl.length ? "全回収" : ((paidCnt > 0 || partCnt > 0) ? "一部回収" : "未回収");
+        billLabel = '・<span class="bill-inline">請求' + esc(yen(billSum(bl))) + '(' + bl.length + '名・' + stTxt + ')・自分' + esc(yen(entryOwn(e))) + '</span>';
+      }
+      h += '<div class="entry">'
+        + '<button class="entry-row' + (isGhost ? " is-ghost" : "") + '" data-act="toggle-entry"' + did + '>'
+        + catStampHtml(e.category)
+        + '<span class="entry-main">'
+        + '<span class="entry-store">' + (isGhost ? '👻 ' : '') + esc(e.store || "(店名なし)") + '</span>'
+        + '<span class="entry-sub">' + esc(String(e.date || "").slice(5).replace("-", "/"))
+        + (e.client ? "・" + esc(e.client) : "") + "・" + esc(e.category)
+        + (e.payment ? "・" + esc(e.payment) : "")
+        + (e.memo ? "・" + esc(e.memo) : "")
+        + (e.amount < 0 ? (isCollectionEntry(e) ? "・立替の回収" : "・返金/値引") : "")
+        + (isGhost ? '・<span class="ghost-tag">👻CSV除外</span>' : "")
+        // 回収行が実際に消し込んだ金額を表示(2026-07-21改修11-7)。0円のときは相手の未回収が無い等
+        + (isCollectionEntry(e)
+          ? '・<span class="bill-inline">' + (e.collectApplied > 0
+            ? esc(e.client) + 'の未回収から ' + esc(yen(e.collectApplied)) + ' を自動で差引'
+              + (e.collectUnused > 0 ? '(' + esc(yen(e.collectUnused)) + ' は預かり残高へ)' : '')
+            : esc(e.client) + 'は、この日(' + esc(e.date) + ')までの未回収がありません'
+              + (e.collectUnused > 0 ? '(' + esc(yen(e.collectUnused)) + ' は預かり残高へ)' : '')) + '</span>'
+          : "")
+        + billLabel + '</span>'
+        + '</span>'
+        + '<span class="entry-amount' + (e.amount < 0 ? ' amount-minus' : '') + '">' + esc(yenDisp(e.amount)) + '</span>'
+        + '</button>';
+      if (ui.expandedId === e.id && state.editDraft && state.editDraft.id === e.id) {
+        var d = state.editDraft;
+        h += '<div class="entry-edit">'
+          + '<div class="grid2">'
+          + '<label class="field"><span>日付</span><input type="date" value="' + esc(d.date) + '" data-input="draft" data-field="date"></label>'
+          + amountFieldHtml("draft", d.id, d, "")
+          + '</div>'
+          + '<label class="field"><span>店名</span><input type="text" list="storeList" value="' + esc(d.store) + '" data-input="draft" data-field="store"></label>'
+          + '<label class="field"><span>取引先・案件(任意)</span>'
+          + (d.clientAdding
+            ? '<input type="text" list="clientList" placeholder="新しい取引先名を入力" value="' + esc(d.client || "") + '" data-input="draft" data-field="client">'
+            : clientSelectHtml(d.client || "", 'data-change="draft-client"'))
+          + '</label>'
+          + '<div class="grid2">'
+          + '<label class="field"><span>勘定科目</span>' + catSelectHtml(d.category, 'data-change="draft" data-field="category"' + catClassAttr(d.category)) + '</label>'
+          + '<label class="field"><span>支払方法</span>' + selectHtml(PAYMENTS, d.payment, 'data-change="draft" data-field="payment"') + '</label>'
+          + '</div>'
+          + personsSectionHtml("draft", d.id, d, "")
+          + billSectionHtml("draft", d.id, d, "")
+          + '<label class="field" style="margin-bottom:12px;"><span>メモ</span><input type="text" value="' + esc(d.memo) + '" data-input="draft" data-field="memo"></label>'
+          // 幽霊ボタン(2026-07-21改修D): 表示・集計には残るがCSVには出さない切り替え
+          + '<button class="ghost-btn' + (d.ghost ? " on" : "") + '" data-act="ghost-toggle">'
+          + (d.ghost ? '👻 幽霊を解除する(CSVに含める)' : '👻 幽霊にする(CSVから除外)') + '</button>'
+          + '<div class="bill-note" style="margin-bottom:12px;">幽霊にした行は、アプリの表示・集計には残りますが、CSV書き出しに含まれません(JSON控えには含まれます)。詳しくは設定ページへ。</div>'
+          // マイナス保存の確認(2026-07-21改修13-6)。承認待ちカードと同じ2段階にそろえる。
+          // 請求(立替)が入っていれば、消える金額も出してから確定させる(2026-07-21改修13-1)。
+          // 回収の行では文言を回収用に切り替える(2026-07-21改修13-12・検証10 問題8の修正)
+          + (ui.editNeg
+            ? '<div class="neg-confirm">'
+              + (d.collect === true
+                ? '<strong>立替の回収として記録します。</strong>受け取った <strong>' + esc(yen(Math.abs(ui.editNeg.amt))) + '</strong> を'
+                  + '台帳に <strong class="amount-minus">△' + esc(Math.abs(ui.editNeg.amt).toLocaleString("ja-JP")) + '</strong> として残します。'
+                  + (d.ghost === true ? '幽霊(CSV除外)がONなので、確定申告用CSVには出ません。' : '<strong>幽霊(CSV除外)がOFFです。</strong>このままだと確定申告用CSVに出ます。')
+                  + 'よろしいですか?'
+                : '返金・値引きとして <strong>マイナス ' + esc(yen(Math.abs(ui.editNeg.amt))) + '</strong> を保存します。'
+                  + '台帳には <strong class="amount-minus">△' + esc(Math.abs(ui.editNeg.amt).toLocaleString("ja-JP")) + '</strong> と表示され、集計から差し引かれます。よろしいですか?')
+              + (ui.editNeg.sum > 0
+                ? '<div class="bill-lost"><span class="warn-ic sm">!</span><span>'
+                  + esc(((ui.editNeg.names && ui.editNeg.names.length) ? ui.editNeg.names.join("・") + "への" : "")
+                    + "請求 " + yen(ui.editNeg.sum) + "(" + (ui.editNeg.count || 0) + "名)も一緒に消えます。") + '</span></div>'
+                : '')
+              + '<div class="row"><button class="go" data-act="save-edit-neg">'
+              + esc(d.collect === true
+                ? (ui.editNeg.sum > 0 ? "請求を消して回収として保存する" : "回収として保存する")
+                : (ui.editNeg.sum > 0 ? "請求を消してマイナスで保存する" : "マイナスで保存する")) + '</button>'
+              + '<button class="stop" data-act="save-edit-neg-cancel">やめる</button></div>'
+              + '</div>'
+            : '')
+          + '<div class="row"><button class="save" data-act="save-edit">保存する</button>'
+          + '<button class="cancel" data-act="cancel-edit">やめる</button></div>'
+          + '</div>';
+      } else if (ui.expandedId === e.id) {
+        h += '<div class="entry-quick">'
+          + catSelectHtml(e.category, 'data-change="entry-cat"' + did + catClassAttr(e.category))
+          + '<button class="mini-btn-ai" data-act="start-edit"' + did + '>変更</button>'
+          + '<button class="mini-btn-shu" data-act="delete-entry"' + did + '>削除</button>'
+          + '</div>';
+      }
+      h += '</div>';
+    });
+    h += '</div></section>';
+  });
+  el.innerHTML = h;
+}
+
+function renderFooter() {
+  // 件数はCSVに実際に出る行数(幽霊・自分負担0円を除いた数)に合わせる(2026-07-21 ユーザー指示)
+  document.getElementById("footer").innerHTML = state.entries.length > 0
+    ? '<div class="footer"><div class="footer-inner"><button data-act="open-csv">CSVをダウンロード(' + csvTargets().length + '件)</button></div></div>'
+    : "";
+}
+
+function renderCsvPanel() {
+  var el = document.getElementById("csvLayer");
+  if (!ui.csvOpen) { el.innerHTML = ""; return; }
+  el.innerHTML =
+    '<div class="sheet-back"><div class="sheet">'
+    + '<div class="sheet-head"><span class="title">CSV出力</span>'
+    + '<button class="close" data-act="close-csv">閉じる</button></div>'
+    + '<div class="btn-row">'
+    + '<button class="copy" data-act="copy-csv">全文をコピー</button>'
+    + '<button class="dl" data-act="dl-csv">ファイル保存</button>'
+    + '</div>'
+    + '<div class="hint">「全文をコピー」したら、<strong>Googleドライブや自分宛メールなど端末の外</strong>に貼り付けて控えにしてください(同じスマホのメモ帳だけだと、端末の紛失・故障で本体と控えが一緒に消えます)。学習・回収状態まで丸ごと戻せる控えは、設定ページの「JSONをコピー」です。ファイル保存は .txt 形式になります(中身はCSVそのもの。Excelでそのまま開けます)。<br>最終バックアップ: ' + esc(state.lastBackup || "未実施") + '</div>'
+    + (ui.copyMsg ? '<div class="notice notice-info">' + esc(ui.copyMsg) + '</div>' : '')
+    + '<textarea readonly style="height:38vh" data-focus="select">' + esc(ui.csvText) + '</textarea>'
+    + '</div></div>';
+}
+
+// 請求の明細(2026-07-21改修A: bills の1件=1明細)。d = {e: 記帳, b: 請求1件, ix: bills内の位置}
+function billDetails() {
+  var out = [];
+  state.entries.forEach(function (e) {
+    (Array.isArray(e.bills) ? e.bills : []).forEach(function (b, ix) {
+      out.push({ e: e, b: b, ix: ix });
+    });
+  });
+  return out;
+}
+// 請求先ブロックに出す預かり残高の1行(2026-07-21改修12)。残高0のときは何も出さない。
+// 取引先名と金額を必ず文字で書く(色だけに頼らない=三重符号化)。未回収残とは別枠の数字
+function depLineHtml(name) {
+  var amt = depositOf(name);
+  if (amt <= 0) return "";
+  return '<div class="dep-line"><span class="dep-badge" aria-hidden="true">預</span>'
+    + esc(cleanBillName(name)) + 'の預かり残高 <span class="v">' + esc(yen(amt)) + '</span>(次回の立替に使えます)</div>';
+}
+// 明細を請求先ごとにまとめる(名前順)。to空は「(請求先なし)」に集約
+function billGroupsD(list) {
+  var m = {};
+  list.forEach(function (d) {
+    var k = d.b.to || "(請求先なし)";
+    (m[k] = m[k] || []).push(d);
+  });
+  return Object.keys(m).sort().map(function (k) { return { name: k, rows: m[k] }; });
+}
+// hideDate: 日付見出しの下に並べるとき true(行ごとの日付表示を省く)
+function billRowHtmlD(d, paid, hideDate) {
+  var subs = [];
+  if (!hideDate) subs.push(esc(d.e.date));
+  if (paid) subs.push('回収日 ' + esc(d.b.paidDate || "不明"));
+  // 出どころの内訳を文字で明記する(2026-07-21改修11-7、改修13-11・検証10 問題5の修正)。
+  // 回収記録からの自動充当ぶんと、手動で「回収済みにする」を押して宣言したぶんを混ぜない
+  if (paid) {
+    var manAmt = billManualAmt(d.b);
+    var autoAmt = billPaidAmt(d.b) - manAmt;
+    if (autoAmt > 0 && manAmt > 0) subs.push('回収記録から ' + esc(yen(autoAmt)) + '・手動 ' + esc(yen(manAmt)));
+    else if (autoAmt > 0 && d.b.paidBy) subs.push('回収記録から自動');
+    else if (manAmt > 0) subs.push('手動で回収済み');
+  }
+  // 一部回収(2026-07-21改修11-8): 請求額と回収済み額を文字で明記し、金額欄は「残り」を出す
+  var part = !paid && billPaidAmt(d.b) > 0;
+  if (part) subs.push('請求 ' + esc(yen(d.b.amount)) + '・回収済み ' + esc(yen(billPaidAmt(d.b))) + '(一部回収)');
+  if (d.e.memo) subs.push(esc(d.e.memo));
+  return '<div class="bill-row2">'
+    + '<span class="info"><span class="st">' + esc(d.e.store || "(店名なし)") + '</span>'
+    + (subs.length ? '<span class="sub">' + subs.join("・") + '</span>' : '')
+    + '</span>'
+    + '<span class="amt">' + (part ? '残り ' : '') + esc(yen(paid ? d.b.amount : billRemain(d.b))) + '</span>'
+    + (paid
+      ? '<button class="mini-btn-shu" data-act="bill-unpaid" data-id="' + esc(d.e.id) + '" data-bidx="' + d.ix + '">取り消す</button>'
+      : '<button class="mini-btn-ai" data-act="bill-paid" data-id="' + esc(d.e.id) + '" data-bidx="' + d.ix + '">回収済みにする</button>')
+    + '</div>';
+}
+function renderBillsPage(el) {
+  var all = billDetails();
+  var h = '<div class="page"><div class="page-inner">'
+    + '<div class="page-head"><h2>立替・請求の管理</h2><button class="close-btn" data-act="close-page">閉じる</button></div>'
+    + '<div class="page-note">割り勘・立替・会社経費で「請求分」を入れた記帳の回収を、請求先ごと・月ごとに管理します。回収してもしなくても、<strong>経費の集計・確定申告には影響しません</strong>(立替金が返ってきただけのため)。</div>';
+  if (all.length === 0) {
+    h += '<div class="empty"><div class="title">請求はまだありません</div>'
+      + '承認待ちカードの「請 割り勘・立替」欄で請求先を選んで記帳すると、ここに並びます。</div>'
+      + '</div></div>';
+    el.innerHTML = h;
+    return;
+  }
+  // 全期間の未回収合計(月をまたいだ取りこぼし防止)
+  var allUnpaidTotal = 0;
+  all.forEach(function (d) { allUnpaidTotal += billRemain(d.b); }); // 一部回収は残りぶんだけ数える
+  h += '<div class="page-note num">全期間の未回収合計: <strong>' + esc(yen(allUnpaidTotal)) + '</strong></div>';
+  // 預かり残高(2026-07-21改修12): 多めに受け取った分を取引先ごとに表示するだけ。立替への充当はしない。
+  // 未回収残とは別枠の数字なので、上の「未回収合計」からは差し引かない
+  var depAll = depositList(null);
+  if (depAll.length > 0) {
+    var depSum = 0;
+    depAll.forEach(function (d) { depSum += d.amt; });
+    h += '<div class="dep-box">'
+      + '<div class="d-head"><span><span class="dep-badge" aria-hidden="true">預</span>預かり残高 合計</span>'
+      + '<span class="v">' + esc(yen(depSum)) + '</span></div>'
+      + depAll.map(function (d) {
+        return '<div class="d-row"><span>' + esc(d.name) + '</span><span class="v">' + esc(yen(d.amt)) + '</span></div>';
+      }).join("")
+      + '<div class="d-note">相手から多めに受け取った分です。<strong>自動では次の立替に充てません</strong>。次に精算するとき、この残高を見て受け取る額を調整してください。経費でも収入でもないので確定申告には影響しません。</div>'
+      + '</div>';
+  }
+  // 月ページ切替(2026-07-21改修C)。既定はデータのある最新月
+  var byMonth = {};
+  all.forEach(function (d) {
+    var ym = String(d.e.date || "").slice(0, 7);
+    (byMonth[ym] = byMonth[ym] || []).push(d);
+  });
+  var months = Object.keys(byMonth).sort(function (a, b) { return b.localeCompare(a); });
+  var cur = months.indexOf(ui.billsMonth) !== -1 ? ui.billsMonth : months[0];
+  h += monthNavHtml(months, cur, "bills-month");
+  var list = byMonth[cur];
+  var unpaid = list.filter(function (d) { return d.b.status !== "paid"; });
+  var paid = list.filter(function (d) { return d.b.status === "paid"; });
+  // 未回収の合計は「残り」(請求額−回収済み額)で数える。一部回収した分は回収済み側へ回る
+  var unpaidTotal = 0;
+  unpaid.forEach(function (d) { unpaidTotal += billRemain(d.b); });
+  var paidTotal = 0;
+  paid.forEach(function (d) { paidTotal += d.b.amount; });
+  unpaid.forEach(function (d) { paidTotal += billPaidAmt(d.b); }); // 一部回収ぶん
+  h += '<div class="summary"><span class="label">' + esc(monthLabel(cur)) + 'の未回収</span>'
+    + '<span class="amount" style="color:var(--purple);">' + esc(yen(unpaidTotal)) + '</span></div>';
+  var cc = ui.billsCollectConfirm;
+  // 月まとめ回収(2026-07-21改修C)
+  if (unpaid.length > 0) {
+    if (cc && cc.type === "collect" && cc.month === cur) {
+      h += '<div class="bulk-confirm">'
+        + '<div class="msg"><span class="warn-ic sm">!</span><span><strong>' + esc(monthLabel(cur)) + 'の未回収 ' + unpaid.length + '件・' + esc(yen(unpaidTotal)) + '</strong> をすべて回収済み(回収日=今日)にします。よろしいですか?</span></div>'
+        + '<div class="sub">経費の集計(自分負担)には影響しません。</div>'
+        + '<div class="row"><button class="go" data-act="bills-collect-go" data-type="collect" data-month="' + esc(cur) + '">回収済みにする</button>'
+        + '<button class="stop" data-act="bills-collect-stop">やめる</button></div></div>';
+    } else {
+      h += '<button class="btn bulk-btn" data-act="bills-collect-open" data-type="collect" data-month="' + esc(cur) + '">この月をまとめて回収済みにする(' + unpaid.length + '件・' + esc(yen(unpaidTotal)) + ')</button>';
+    }
+    billGroupsD(unpaid).forEach(function (g) {
+      var sum = 0;
+      g.rows.forEach(function (d) { sum += billRemain(d.b); });
+      // 未回収の明細は日付ごとに区切る(2026-07-21 ユーザー要望)。日付見出しにその日の小計(整数の足し算のみ)
+      var byDate = {};
+      g.rows.forEach(function (d) {
+        var dt = d.e.date || "(日付なし)";
+        (byDate[dt] = byDate[dt] || []).push(d);
+      });
+      var rowsHtml = Object.keys(byDate).sort().reverse().map(function (dt) {
+        var daySum = 0;
+        byDate[dt].forEach(function (d) { daySum += billRemain(d.b); });
+        return '<div class="bill-date-head"><span>' + esc(dt) + '</span><span class="d-amt">小計 ' + esc(yen(daySum)) + '</span></div>'
+          + byDate[dt].map(function (d) { return billRowHtmlD(d, false, true); }).join("");
+      }).join("");
+      h += '<div class="bill-group" style="border-color:' + clientColor(g.name) + ';">'
+        + '<div class="g-head" style="border-bottom-color:' + clientColor(g.name) + ';">'
+        + '<span class="name">' + clientBadgeHtml(g.name) + esc(g.name) + '</span>'
+        + '<span class="amt">未回収 ' + esc(yen(sum)) + '</span></div>'
+        + depLineHtml(g.name)
+        + rowsHtml
+        + (g.rows.length > 1
+          ? '<button class="sub-act" style="margin-top:8px;" data-act="bill-paid-group" data-name="' + esc(g.name) + '" data-month="' + esc(cur) + '">この請求先をまとめて回収済みにする</button>'
+          : '')
+        + '</div>';
+    });
+  } else {
+    // 「未回収 ¥0」の明示表示(月まとめ回収後・全回収の月)
+    h += '<div class="notice notice-info"><strong>未回収 ¥0</strong> — ' + esc(monthLabel(cur)) + 'の請求はすべて回収済みです。</div>';
+  }
+  // 回収済み(折りたたみ・既定は閉)+月まとめ回収の取消
+  if (paid.length > 0) {
+    if (!ui.billsPaidOpen) {
+      h += '<button class="paid-fold" data-act="bills-paid-toggle"><span>回収済み(' + paid.length + '件)</span><span>ひらく ▾</span></button>';
+    } else {
+      h += '<button class="paid-fold" data-act="bills-paid-toggle"><span>回収済み(' + paid.length + '件)</span><span>とじる ▴</span></button>';
+      billGroupsD(paid).forEach(function (g) {
+        var sum = 0;
+        g.rows.forEach(function (d) { sum += d.b.amount; });
+        h += '<div class="bill-group paid">'
+          + '<div class="g-head"><span class="name">' + clientBadgeHtml(g.name) + esc(g.name) + '</span>'
+          + '<span class="amt">回収済 ' + esc(yen(sum)) + '</span></div>'
+          + depLineHtml(g.name)
+          + g.rows.map(function (d) { return billRowHtmlD(d, true); }).join("")
+          + '</div>';
+      });
+    }
+    // 取消(a案・2026-07-21リーダー決定): その月の回収済みを全部未回収に戻す。個別回収分も戻る旨を確認表示に明記
+    if (cc && cc.type === "cancel" && cc.month === cur) {
+      h += '<div class="bulk-confirm">'
+        + '<div class="msg"><span class="warn-ic sm">!</span><span><strong>' + esc(monthLabel(cur)) + 'の回収済み ' + paid.length + '件・' + esc(yen(paidTotal)) + '</strong> をすべて未回収に戻します。<strong>まとめ回収した分だけでなく、個別に回収済みにした明細も未回収に戻ります。</strong>よろしいですか?</span></div>'
+        + '<div class="sub">経費の集計(自分負担)には影響しません。</div>'
+        + '<div class="row"><button class="go" data-act="bills-collect-go" data-type="cancel" data-month="' + esc(cur) + '">未回収に戻す</button>'
+        + '<button class="stop" data-act="bills-collect-stop">やめる</button></div></div>';
+    } else {
+      h += '<button class="sub-act" data-act="bills-collect-open" data-type="cancel" data-month="' + esc(cur) + '">この月のまとめて回収を取り消す(回収済みを未回収に戻す)</button>';
+    }
+  }
+  h += '</div></div>';
+  el.innerHTML = h;
+}
+
+function renderPage() {
+  var el = document.getElementById("pageLayer");
+  if (!ui.page) { el.innerHTML = ""; return; }
+  if (ui.page === "bills") { renderBillsPage(el); return; }
+  if (ui.page === "clients") {
+    var listHtml = state.clientList.length === 0
+      ? '<div style="color:var(--sub);font-weight:700;text-align:center;padding:24px 0;">まだ取引先がありません</div>'
+      : state.clientList.map(function (c) {
+        return '<div class="client-row"><span class="name">' + esc(c) + '</span>'
+          + '<button class="mini-btn-shu" data-act="remove-client" data-name="' + esc(c) + '">削除</button></div>';
+      }).join("");
+    el.innerHTML =
+      '<div class="page"><div class="page-inner">'
+      + '<div class="page-head"><h2>取引先の管理</h2><button class="close-btn" data-act="close-page">閉じる</button></div>'
+      + '<div class="page-note">ここにある取引先が、記帳時のプルダウン候補になります。一度記帳で使った取引先は自動でここに追加されます。削除しても過去の記帳は変わりません。</div>'
+      + '<div class="client-add"><input type="text" id="newClientName" placeholder="取引先名を追加">'
+      + '<button data-act="add-client">追加</button></div>'
+      + listHtml
+      + '</div></div>';
+    return;
+  }
+  // 設定・使い方ページ
+  el.innerHTML =
+    '<div class="page"><div class="page-inner">'
+    + '<div class="page-head"><h2>設定・使い方</h2><button class="close-btn" data-act="close-page">閉じる</button></div>'
+
+    + '<section><h3>現在の状態</h3>'
+    + '記帳 ' + state.entries.length + '件 / 学習ルール ' + state.rules.length + '件<br>'
+    + '最終バックアップ: ' + esc(state.lastBackup || "未実施") + '<br>'
+    + '<button class="sub-act" data-act="self-test">保存テストを実行</button>'
+    + (ui.selfTestMsg ? '<div class="notice notice-info" style="margin-top:8px;">' + esc(ui.selfTestMsg) + '</div>' : '')
+    + '</section>'
+
+    + '<section><h3>記帳の流れ</h3>'
+    + '① レシートやSuica・クレカ履歴のスクショをClaudeのチャットに送る(下の「お願い文」も一緒に) → ② 返ってきた行をコピー → ③ このアプリの「読み取り結果を貼り付けて取り込み」に貼る → ④ 内容を確認して朱色の承認印。急ぎのときは「レシート手入力」でも記帳できます。立替金の回収は「💴 回収を記録」から。'
+    + '</section>'
+
+    + '<section><h3>チャットへのお願い文(コピーして使う)</h3>'
+    + '<div class="copy-block mono" id="askBlock">' + esc(ASK_TEXT).replace(/\n/g, "<br>") + '</div>'
+    + '<button class="sub-act" data-act="copy-ask">お願い文をコピー</button>'
+    + '</section>'
+
+    + '<section><h3>貼り付けの形式</h3>'
+    + '1行=1件で、カンマ区切りのこの並びです:<br>'
+    + '<span class="mono">日付,店名,金額,勘定科目,支払方法,取引先,メモ</span><br>'
+    + '取引先は空でもOK(古い6項目形式もそのまま取り込めます)。割り勘・立替・会社経費・人数・幽霊があるときは、末尾に <span class="mono">,請求分,請求先,人数,幽霊</span> の4列(8〜11列目・任意)を足せます(使わない列はカンマだけ置いて位置を揃えます。例: 人数だけなら <span class="mono">,,3</span>)。<br>'
+    + '<strong>11列目(幽霊)に <span class="mono">1</span> を入れた行は、幽霊(確定申告用CSVに出さない行)として取り込まれます。</strong>PayPay等の「送金を受け取った」スクショ=立替金の回収は、<strong>金額をマイナス+11列目=1</strong> で記録します(例: <span class="mono">2026-07-21,山田太郎さんから回収,-3452,会議費,QRコード決済,山田太郎,立替回収,,,,1</span>)。<br>'
+    + '請求先が複数いるときは <span class="mono">A社/B社</span> のように半角「/」で区切ります。請求分の合計が請求先の人数で均等に分けられ(切り捨て)、端数は先頭の請求先に足されます。承認待ちが2件以上あると「まとめて承認」ボタンが使えます。'
+    + '</section>'
+
+    + '<section><h3>バックアップ(週1・月曜が控えの日)</h3>'
+    + '<strong>週1回、月曜を「控えの日」</strong>にして、控えを取りましょう。おすすめは、すぐ下の<strong>「JSONをコピー」→ Googleドライブや自分宛メールなど端末の外へ貼り付け</strong>です(記帳・学習・取引先まで丸ごと戻せます)。CSVでもJSONでも、コピー・ファイル保存をすると実施日が記録され、7日以上空くと画面上部に黄色いお知らせが出ます(60日を超えると赤になります)。<br>'
+    + '<strong>控えは必ず「端末の外」へ。</strong>同じスマホのメモ帳だけだと、端末の紛失・故障・初期化で本体と控えが一緒に消えます。<br>'
+    + 'iPhone(Safari)で使う場合は、共有メニューから<strong>「ホーム画面に追加」</strong>して、そのアイコンから開くのがおすすめです。ホーム画面に追加したサイトは、Safariの「7日間使わないとサイトのデータが自動削除される」仕組みの対象外とされ、データが消えにくくなります。'
+    + '</section>'
+
+    + '<section><h3>JSON控え(丸ごとバックアップ・復元)</h3>'
+    + '機種変更やブラウザの履歴削除に備えて、全データ(記帳・学習・取引先など)を1つのテキストとして控えられます。コピー・ファイル保存をすると、バックアップの実施日も記録されます。復元すると、今のデータはこの控えの内容に置き換わります(直前のデータは1世代前バックアップに退避されます)。<br>'
+    + '<button class="sub-act" data-act="copy-json">JSONをコピー</button>'
+    + '<button class="sub-act" data-act="dl-json">JSONをファイル保存</button>'
+    + '<textarea id="jsonImportText" style="height:70px;margin-top:8px;" placeholder="控えのJSONをここに貼り付けて復元"></textarea>'
+    + '<button class="sub-act" data-act="import-json">貼り付けた内容で復元</button>'
+    + (ui.jsonMsg ? '<div class="notice notice-info" style="margin-top:8px;">' + esc(ui.jsonMsg) + '</div>' : '')
+    // 公開URLで使うときの注意(2026-07-21改修13-10 ユーザー指示で引っ越しの記述は削除。安全の注意だけ1行残す)
+    + '<div style="margin-top:8px;">公開URLで使うときは、<strong>この台帳だけを置くURL</strong>にしてください(同じ ○○.github.io の下に別のページを置くと、そのページから台帳のデータを読めてしまいます)。</div>'
+    + '</section>'
+
+    + '<section><h3>削除ログ(原本写真の整理用)</h3>'
+    + '記帳を削除すると、消した内容(削除日・日付・店名・金額・科目・メモ)がここに記録されます。現在 <strong>' + state.deletedLog.length + '件</strong>。<br>'
+    + '「削除ログをコピー」でコピーした内容をチャット(Claude Code)に貼り付けると、対応するレシート原本写真を「削除済み」フォルダへ移動してもらえます。移動が済んだら「ログをクリア」で空にしてください。'
+    + (state.deletedLog.length > 0 ? '<div class="copy-block mono">' + esc(buildDeletedLogText()).replace(/\n/g, "<br>") + '</div>' : '')
+    + '<button class="sub-act" data-act="copy-dellog">削除ログをコピー</button>'
+    + (state.deletedLog.length > 0 ? '<button class="sub-act" data-act="clear-dellog">ログをクリア</button>' : '')
+    + (ui.logClearConfirm ? '<div class="notice notice-error" style="margin-top:8px;"><div class="n-head"><span class="warn-ic sm">!</span><span>削除ログ ' + state.deletedLog.length + '件を空にします。原本写真の移動が済んでいるか確認してから消してください。</span></div>'
+      + '<button class="sub-act" data-act="clear-dellog-go" style="color:var(--warn);border-color:var(--warn);">空にする</button>'
+      + '<button class="sub-act" data-act="clear-dellog-stop">やめる</button></div>' : '')
+    + (ui.logMsg ? '<div class="notice notice-info" style="margin-top:8px;">' + esc(ui.logMsg) + '</div>' : '')
+    + '</section>'
+
+    + '<section><h3>確定申告への使い方</h3>'
+    + '1年分の帳簿がたまったら、次の流れで確定申告に使えます。<br>'
+    + '① 台帳の上の<strong>年タブ</strong>で、申告する年(例: 2026年)に絞り込みます(記帳が2年分以上あると年タブが表示されます)。<br>'
+    + '② 絞り込んだ状態の<strong>科目別集計</strong>の金額を、申告書類の経費欄へ科目ごとに書き写します。白色申告なら「収支内訳書」、青色申告なら「青色申告決算書」の経費の内訳欄です(会議費など欄が無い科目は空欄の科目名を書いて使います)。科目別集計は<strong>自分負担(総額−請求分)ベース</strong>なので、そのまま転記できます。<br>'
+    + '③ CSVは<strong>確定申告用</strong>です。7列(<span class="mono">日付,店名,金額,勘定科目,支払方法,取引先,メモ</span>)で、<strong>「金額」=自分負担(総額−請求分の合計)</strong>なので、そのまま申告に使えます。<strong>立替分・回収の情報はCSVには出ません。</strong>自分負担0円の行(全額を会社などに請求した立替=自分の経費ではないもの)と幽霊行もCSVには出ません。立替・回収・幽霊まで含めた<strong>全データの控えはJSON控え</strong>(上のバックアップ)の役目です。<br>'
+    + '④ 下の「CSVをダウンロード」→「全文をコピー」で、その年の明細の控えを保存します。レシート原本とこの帳簿(CSV控え)は7年保存します。<br>'
+    + '⑤ 会計ソフト(freee・マネーフォワード・弥生など)を使う場合は、CSVをソフトに取り込めば、転記なしで集計・申告書類の作成までできます。<br>'
+    + 'なお、このCSVを「読み取り結果を貼り付けて取り込み」に貼り直すと、<strong>請求情報なしの承認待ち</strong>として取り込まれます(それで正常です。全データを丸ごと戻す往復はJSON控えを使ってください)。'
+    + '</section>'
+
+    + '<section><h3>7年保存のルール</h3>'
+    + '帳簿・書類は税法上7年保存が原則です。このアプリの保存(ブラウザ内)は、履歴削除・機種変更・長期間使わない等で消えることがあるため、<strong>正本は「端末の外に置いた週1のJSON控え」</strong>と考えてください。紙のレシート原本にも保存義務があるので、捨てずに年別の封筒などで保管を。'
+    + '</section>'
+
+    + '<section><h3>科目の学習</h3>'
+    + 'このアプリは「店名→勘定科目」の対応を自動で覚えます。学習されるのは次の3つの瞬間です。<br>'
+    + '① 承認待ちカードで<strong>承認印を押した瞬間</strong>(そのときの店名と科目の組み合わせを覚えます)<br>'
+    + '② 記帳済みの行をタップして<strong>科目を変更した瞬間</strong>(新しい科目で覚え直します)<br>'
+    + '③ 記帳済みの行の編集フォームで<strong>「保存する」を押した瞬間</strong>(そのときの店名と科目で覚え直します)<br>'
+    + '覚えた店は、次回の取り込みから自動でその科目が予想されます(「セブンイレブン梅田店」のような<strong>部分一致</strong>でも同じ店とみなします)。カードに「過去の実績から予想」と表示されるのがこの学習の働きです。<br>'
+    + 'なお、貼り付け取り込みの行に科目が書かれている場合(チャットで仕分け済みの行など)は、<strong>学習よりも貼り付けの科目が優先</strong>されます。学習が使われるのは、科目が空欄か15科目に無いときだけです。'
+    + '</section>'
+
+    + '<section><h3>会議費と接待交際費の分け方</h3>'
+    + 'このアプリでは <strong>1人あたり5,000円以下の打合せ飲食=会議費、それを超える会食=接待交際費</strong> という<strong>マイルール(自分基準)</strong>で仕分けます。<br>'
+    + '個人事業主には法律で決まった金額の線引きは無く、<strong>どちらの科目でも事業に必要な支出なら経費にできます</strong>(税額も変わりません)。基準を毎回そろえることが帳簿の信頼につながります。<br>'
+    + '割り勘のときも、判定は<strong>総額(レシートの合計)÷人数</strong>で見ます(自分負担額ではなく総額基準です)。<br>'
+    + 'それよりも大事なのは、会食のときに<strong>人数・相手・関係(例: 4名・○○社△△様・打合せ)をメモに残す</strong>ことです。あとから「事業に必要な会食だった」と説明する材料になります。'
+    + '</section>'
+
+    + '<section><h3>割り勘・立替・会社経費の使い方</h3>'
+    + '会社宛・会社用途の支払いも、取引先や知人との割り勘・立替(たてかえ=他人の分を一時的に自分が払うこと)も、<strong>ぜんぶこのアプリに入れてOK</strong>です。承認待ちカードや編集フォームの「<span class="mono">請</span> <strong>割り勘・立替</strong>」欄(紫の枠)で<strong>請求先を複数タップして選ぶ</strong>と、自分の経費には<strong>自分負担(総額−請求分の合計)だけ</strong>が計上されます。<br>'
+    + '・<strong>割り勘</strong> … ①人数を選ぶ → ②請求する相手をタップ(複数選べます。最大 人数−1名)。<strong>1人あたり=総額÷人数の切り捨て</strong>が自動で入り、端数は自分負担側に寄ります(例: 総額13,000円・3名・請求先2名 → 各4,333円・自分負担4,334円)。金額は1件ずつ手で直せます(<strong>合計が総額を超えると承認できません</strong>)。<br>'
+    + '・<strong>会社の経費を立て替えた</strong> … 請求先チップで会社名を1つ選んで「全額(会社に請求など)」ボタン。自分負担0円になり、<strong>個人の経費集計・確定申告からは自動で除外</strong>されます。<br>'
+    + '・<strong>回収を記録する</strong> … 画面上の<strong>「💴 回収を記録」</strong>ボタンを押すと、回収用のカードが開きます(メモ「立替回収」と<strong>幽霊(CSV除外)がON</strong>・金額は<strong>マイナス側</strong>の状態)。あとは<strong>受け取った額の数字と取引先</strong>を入れて承認するだけです。回収は経費でも収入でもないため、既定では確定申告用CSVに出しません(カードの「👻」ボタンで<strong>後からCSVに出す/出さないを切り替え</strong>られます。切り替えても未回収からの差し引きは効いたままです)。<strong>金額のマイナスは、金額欄の右にある「±」ボタン</strong>で付け外しします(スマホのテンキーに「−」が無いためです。承認待ちカードでも編集フォームでも使えます)。PayPay等の受取スクショをチャットで読み取ってもらった行(11列目=1)も同じ形で取り込まれます。<br>'
+    + '・<strong>回収を記録すると、その相手の未回収から自動で差し引かれます</strong>(2026-07-21追加)。対象は「💴 回収を記録」で作った<strong>マイナス金額+取引先あり</strong>の記帳(=回収行)で、その取引先への未回収の請求を<strong>古い日付順</strong>に、受け取った額のぶんだけ自動で差し引きます。<strong>CSVに出す・出さない(👻)は、この差し引きとは無関係</strong>です。<br>'
+    + '　- <strong>差し引くのは「回収した日以前の立替」だけ</strong>です。あとから増えた新しい立替(受け取った日より後のもの)が勝手に回収済みになることはありません。使い切れなかった受取額はその場で止まり、台帳に「◯◯円は預かり残高へ」と出ます(桁の打ち間違いに気づけます)。<br>'
+    + '　- <strong>一部だけ受け取った場合も反映されます。</strong>例: 請求¥4,333に対し¥4,300を受け取ると、その請求は「回収済み ¥4,300・残り ¥33」になります(請求ビューでは残額を表示)。<br>'
+    + '　- 請求ビューでは自動で差し引かれた明細に「回収記録から自動」と表示されます。回収行を削除したり金額・取引先を変えたりすると、差し引きも自動で元に戻ります。手動で<strong>「回収済みにする」</strong>を押すと、<strong>未回収残(まだ受け取っていない分)だけ</strong>を「手動で受け取った」として記録します(自動で差し引かれた分はそのまま。表示は「回収記録から ¥X・手動 ¥Y」)。<br>'
+    + '・<strong>多めに受け取った分は「預かり残高」として相手ごとに表示されます</strong>(2026-07-21追加)。<strong>自動では次の立替に充てません</strong>(受け取っていない立替が回収済みに見えるのを防ぐためです)。次回精算するときは、この残高を見ながら受け取る金額を調整するか、その分を差し引いた回収行を記録してください。預かり残高は経費でも収入でもないので<strong>確定申告には影響しません</strong>。場所は請求ページの上部(取引先ごとの一覧)と、台帳の「請 立替の月別累計」の合計欄です。<br>'
+    + '・立替の残高は台帳の<strong>「請 立替の月別累計」</strong>で確認できます(月ごとに 立替累計・回収済み・未回収残 の3つと、全体合計。合計には<strong>預かり残高</strong>も並びます)。取引先を選んでいないときは全請求先の合算です。<br>'
+    + '・回収の管理は右上の<strong>「請求」ボタン</strong>から。明細ごと・請求先ごとに加えて、月ページの<strong>「この月をまとめて回収済みにする」</strong>も使えます(取消も可)。回収済みにしてもしなくても、<strong>経費の集計・確定申告には一切影響しません</strong>(割り勘で相手からもらう分は最初から経費に入っていないためです)。<br>'
+    + '・<strong>純粋な返品・値引きだけ</strong>が、従来どおりのマイナス金額(例: -500)での記帳です(こちらは経費の減額として集計から差し引かれます)。割り勘・立替にはマイナス記帳を使わないでください。<br>'
+    + '・請求先の名前に半角「/」は使えません(CSVで複数請求先を区切る記号のため。入力すると自動で全角「/」になります)。'
+    + '</section>'
+
+    + '<section><h3>幽霊(CSV除外)の使い方</h3>'
+    + '申告用のCSVには載せたくない経費を、アプリの中だけで管理する機能です。記帳済みの行をタップ →「変更」→「<strong>👻 幽霊にする</strong>」で切り替えられます(戻すのも同じ場所です)。<br>'
+    + '幽霊にした行は、台帳では<strong>半透明+👻マーク+「CSV除外」の文字</strong>で表示され、アプリの表示・集計には残りますが(「うち幽霊 ¥X」の注記つき)、<strong>CSV書き出しには含まれません</strong>。JSON控え(丸ごとバックアップ)には含まれるので、データは失われません。<br>'
+    + '申告に載せる金額が<strong>減る方向</strong>の除外なので、税務上の問題はありません。'
+    + '</section>'
+
+    + '<section><h3>取引先ごとの表示</h3>'
+    + '記帳の「取引先・案件」はプルダウンから選べます。一度使った取引先は自動で候補になり、右上の「取引先」で候補の追加・削除ができます。取引先を入れた記帳があると、台帳の上に切り替えボタンが現れ、取引先別の経費だけを表示・集計できます。<br>'
+    + '<strong>操作方法(2026-07-21変更): 取引先ボタンは「タップ=その1件だけを表示」「2秒の長押し=複数選択(押すたびに追加・解除)」です。</strong>長押し中はボタンに色が満ちていき、指を離すか2秒たつ前に動かすと通常のタップになります。選択の解除は「すべて」ボタンです。'
+    + '</section>'
+
+    + '<section><h3>金額のきまり</h3>'
+    + '金額は税込合計を整数(円)で記録します。小数は入力できません。アプリの中で税抜計算や割り算はしないので、集計は1円もずれません。<br>'
+    + '返金・値引きは「-500」のように<strong>マイナスの金額</strong>で記帳できます。承認時に確認が出て、台帳には <strong>△500</strong> のように朱色で表示され、月合計・科目別集計から差し引かれます(CSVには -500 という数値のまま出力されます)。'
+    + '</section>'
+
+    + '</div></div>';
+}
+
+// ---------- 店名の入力候補(2026-07-21 ユーザー指示) ----------
+// 候補 = 学習ルール(rules)の店名 + 記帳済み(entries)の店名。表記ゆれ(空白・大小文字)は
+// normalize で同一視して重複除去し、使用回数(ルールのcount+記帳の件数)の多い順に最大20件。
+// datalist は render のたびに1個だけ生成し、承認待ちカード・編集フォームの全店名入力欄で共有する
+function storeCandidates() {
+  var byKey = {};
+  function add(name, cnt) {
+    var n = String(name || "").trim();
+    var key = normalize(n);
+    if (!key) return;
+    if (!byKey[key]) byKey[key] = { name: n, count: 0 };
+    byKey[key].count += cnt;
+  }
+  state.rules.forEach(function (r) {
+    var c = Number(r && r.count);
+    add(r.store, Number.isSafeInteger(c) && c > 0 ? c : 1);
+  });
+  state.entries.forEach(function (e) { add(e.store, 1); });
+  return Object.keys(byKey).map(function (k) { return byKey[k]; })
+    .sort(function (a, b) {
+      return b.count !== a.count ? b.count - a.count : a.name.localeCompare(b.name, "ja");
+    })
+    .slice(0, 20)
+    .map(function (x) { return x.name; });
+}
+function renderStoreDatalist() {
+  var el = document.getElementById("storeDatalist");
+  if (!el) return;
+  el.innerHTML = '<datalist id="storeList">'
+    + storeCandidates().map(function (n) { return '<option value="' + esc(n) + '"></option>'; }).join("")
+    + '</datalist>';
+}
+
+// ---------- 請求先の入力候補(2026-07-21改修11-3) ----------
+// 候補 = 取引先リスト(clientList)+ 過去の請求先(entries の bills[].to)。
+// 表記ゆれ(空白・大小文字)は normalize で同一視して重複除去し、使用回数の多い順に最大20件。
+// 店名用の storeList とは別に clientList という datalist を1個だけ生成し、請求先の新規入力欄で共有する
+function clientCandidates() {
+  var byKey = {};
+  function add(name, cnt) {
+    var n = String(name || "").trim();
+    var key = normalize(n);
+    if (!key) return;
+    if (!byKey[key]) byKey[key] = { name: n, count: 0 };
+    byKey[key].count += cnt;
+  }
+  state.clientList.forEach(function (c) { add(c, 1); });
+  state.entries.forEach(function (e) {
+    (Array.isArray(e.bills) ? e.bills : []).forEach(function (b) { add(b.to, 1); });
+  });
+  return Object.keys(byKey).map(function (k) { return byKey[k]; })
+    .sort(function (a, b) {
+      return b.count !== a.count ? b.count - a.count : a.name.localeCompare(b.name, "ja");
+    })
+    .slice(0, 20)
+    .map(function (x) { return x.name; });
+}
+function renderClientDatalist() {
+  var el = document.getElementById("clientDatalist");
+  if (!el) return;
+  el.innerHTML = '<datalist id="clientList">'
+    + clientCandidates().map(function (n) { return '<option value="' + esc(n) + '"></option>'; }).join("")
+    + '</datalist>';
+}
+
+function render() {
+  renderStoreDatalist();
+  renderClientDatalist();
+  renderSaveBar();
+  renderSummary();
+  renderNotices();
+  renderImportPanel();
+  renderBulk();
+  renderPendings();
+  renderFilters();
+  renderBreakdown();
+  renderLedger();
+  renderFooter();
+  renderCsvPanel();
+}
+
+// ---------- イベントデリゲーション ----------
+// inline onclick を使わず、data-act 属性を親(document)の1つのリスナーで捌く。
+// ユーザー入力(取引先名など)がJSコードとして解釈される経路を構造ごと無くすための方式
+var ACTIONS = {
+  "open-clients": function () { openPage("clients"); },
+  "open-settings": function () { openPage("settings"); },
+  "add-manual": function () { addManual(); },
+  // 回収を記録(2026-07-21改修13-10): 回収前提の値が入った状態でカードを開く
+  "add-collect": function () { addCollect(); },
+  "toggle-import": function () { toggleImport(); },
+  "retry-save": function () { retrySave(); },
+  "save-now": function () { saveNow(); },
+  "import-lines": function () {
+    var ta = document.getElementById("importText");
+    if (ta) ui.importText = ta.value;
+    importLines();
+  },
+  "bulk-open": function () { toggleBulk(true); },
+  "bulk-go": function () { bulkApprove(); },
+  "bulk-stop": function () { toggleBulk(false); },
+  "fold-open": function (el) { foldPending(el.dataset.id, false); },
+  "fold-close": function (el) { foldPending(el.dataset.id, true); },
+  "discard": function (el) { discard(el.dataset.id); },
+  "approve": function (el) { approveOne(el.dataset.id); },
+  "neg-cancel": function () { ui.negConfirmId = null; render(); },
+  // 承認待ちカードの幽霊(CSV除外)解除・再設定
+  "ghost-toggle-pending": function (el) {
+    var p = findPendingById(el.dataset.id);
+    if (!p) return;
+    p.ghost = p.ghost !== true;
+    // 回収の行でCSV除外を解除したときだけ、一言だけ知らせる(2026-07-21改修13-11)。
+    // 差し引き(未回収からの消し込み)は幽霊と関係なく効くので、変わるのはCSVに出るかどうかだけ
+    ui.info = (p.collect === true && p.ghost !== true) ? "この回収は確定申告用CSVに出ます。" : "";
+    markDirty();
+    render();
+  },
+  // 仕分けチップ=手動選択(2026-07-21改修B: 以降この行では自動セットしない・学習は従来どおり)
+  "cat-chip": function (el) { setCategoryManual("pending", el.dataset.id, el.dataset.name); },
+  // 取引先フィルタ(2026-07-21改修11-1: 通常タップ=単一選択。複数選択は2秒長押し。「すべて」で解除)
+  "client-tab": function (el) {
+    var n = el.dataset.name;
+    if (n === "all") ui.viewClients = [];
+    else ui.viewClients = [n];   // その取引先1件だけを選択(誤操作防止のため、タップでは複数にしない)
+    render();
+  },
+  "year-tab": function (el) { ui.viewYear = el.dataset.name; render(); },
+  // 月ページ切替(2026-07-21改修C)
+  "ledger-month": function (el) { ui.ledgerMonth = el.dataset.name; render(); },
+  "bills-month": function (el) { ui.billsMonth = el.dataset.name; ui.billsCollectConfirm = null; renderPage(); },
+  "bills-collect-open": function (el) { ui.billsCollectConfirm = { type: el.dataset.type, month: el.dataset.month }; renderPage(); },
+  "bills-collect-go": function (el) { collectMonth(el.dataset.month, el.dataset.type === "collect"); },
+  "bills-collect-stop": function () { ui.billsCollectConfirm = null; renderPage(); },
+  // 幽霊切り替え(2026-07-21改修D)
+  "ghost-toggle": function () {
+    if (!state.editDraft) return;
+    state.editDraft.ghost = state.editDraft.ghost !== true;
+    // 回収の行でCSV除外を解除したときだけ、一言だけ知らせる(2026-07-21改修13-11)
+    ui.info = (state.editDraft.collect === true && state.editDraft.ghost !== true)
+      ? "この回収は確定申告用CSVに出ます。" : "";
+    markDirty();
+    render();
+  },
+  "toggle-entry": function (el) { toggleEntry(el.dataset.id); },
+  "start-edit": function (el) { startEdit(el.dataset.id); },
+  "delete-entry": function (el) { deleteEntry(el.dataset.id); },
+  "save-edit": function () { saveEdit(); },
+  // マイナス保存の確認パネル(2026-07-21改修13-6)
+  "save-edit-neg": function () { saveEdit(true); },
+  "save-edit-neg-cancel": function () { ui.editNeg = null; render(); },
+  "cancel-edit": function () { cancelEdit(); },
+  "open-csv": function () { openCsv(); },
+  "close-csv": function () { closeCsv(); },
+  "copy-csv": function () { copyCsv(); },
+  "dl-csv": function () { downloadCsv(); },
+  "close-page": function () { closePage(); },
+  "self-test": function () { runSelfTest(); },
+  "copy-ask": function () { copyAskText(); },
+  "copy-json": function () { copyJson(); },
+  "dl-json": function () { downloadJson(); },
+  "import-json": function () { importJson(); },
+  "copy-dellog": function () { copyDeletedLog(); },
+  "clear-dellog": function () { ui.logClearConfirm = true; ui.logMsg = ""; renderPage(); },
+  "clear-dellog-go": function () { clearDeletedLog(); },
+  "clear-dellog-stop": function () { ui.logClearConfirm = false; renderPage(); },
+  "add-client": function () { addClientFromPage(); },
+  "remove-client": function (el) { removeClient(el.dataset.name); },
+  "open-bills": function () { openPage("bills"); },
+  "bill-toggle": function (el) { ui.billOpen[el.dataset.key] = el.dataset.open !== "1"; render(); },
+  // 金額の±(符号反転。2026-07-21改修12-2)
+  "sign-flip": function (el) { signFlip(el.dataset.scope, el.dataset.id || ""); },
+  // 複数請求(2026-07-21改修A): 請求先チップの複数タップ+全額+新しい請求先
+  "billto-chip": function (el) { billToToggle(el.dataset.scope, el.dataset.id, el.dataset.name); },
+  "billto-add-open": function (el) { billToAddOpen(el.dataset.scope, el.dataset.id); },
+  "billto-add-go": function (el) { billToAddGo(el.dataset.scope, el.dataset.id); },
+  "bill-full": function (el) { billFull(el.dataset.scope, el.dataset.id); },
+  // 回収は bills の明細単位(data-bidx)
+  "bill-paid": function (el) { setBillStatus(el.dataset.id, Number(el.dataset.bidx), true); },
+  "bill-unpaid": function (el) { setBillStatus(el.dataset.id, Number(el.dataset.bidx), false); },
+  "bill-paid-group": function (el) { markBillPaidGroup(el.dataset.name, el.dataset.month); },
+  "bills-paid-toggle": function () { ui.billsPaidOpen = !ui.billsPaidOpen; renderPage(); },
+  // 人数選択と割り勘表示(2026-07-21追加。チップ選択で会食科目の自動セット判定も行う)
+  "persons-chip": function (el) { personsSet(el.dataset.scope, el.dataset.id, el.dataset.n); },
+  "persons-other": function (el) { personsOther(el.dataset.scope, el.dataset.id); }
+};
+// ---------- 取引先チップの長押し2秒(2026-07-21改修11-1) ----------
+// 通常タップ = その取引先1件だけを選択(単一選択)/ 2秒の長押し = 複数選択として追加・解除。
+// 長押し中はチップの左から色が満ちる進行表示を出し、指を離す・動かす・2秒未満なら通常タップに戻す。
+// タッチ(touchstart/touchend/touchcancel/touchmove)とマウス(mousedown/mouseup/mouseleave)の両対応。
+// 長押しが成立したら、直後に発生するclickを時間ガードで抑止する(1回の操作で2回動くのを防ぐ)
+var lpTimer = null;      // 長押し判定のタイマー
+var lpEl = null;         // 長押し中のチップ
+// 長押しが成立したことを表すフラグ(2026-07-21改修11-8・検証8 問題3の修正)。
+// 「◯ミリ秒以内のclickを無視する」という時間切れ式にすると、2秒より長く押し続けて離したときに
+// 抑止が切れて選択が戻ってしまう。押している時間に関係なく「次の1回のclickだけ」を確実に捨てる
+var lpFired = false;
+var lastTouchAt = 0;     // 直近のタッチ操作時刻(タッチ端末の擬似マウスイベント除け)
+var LONG_PRESS_MS = 2000;
+function lpTargetOf(ev) {
+  var t = ev.target;
+  var el = (t && t.closest) ? t.closest('[data-act="client-tab"]') : null;
+  if (!el || el.disabled) return null;
+  if (el.dataset.name === "all") return null; // 「すべて」チップは長押し対象外(従来どおりの解除ボタン)
+  return el;
+}
+function lpCancel() {
+  if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
+  if (lpEl) { lpEl.classList.remove("lp"); lpEl = null; }
+}
+function lpStart(ev) {
+  var el = lpTargetOf(ev);
+  lpCancel();
+  lpFired = false; // 新しい押下が始まったので、前回の抑止フラグは必ず解除する(取りこぼし防止)
+  if (!el) return;
+  lpEl = el;
+  el.classList.add("lp");
+  lpTimer = setTimeout(function () {
+    lpTimer = null;
+    var name = lpEl ? lpEl.dataset.name : "";
+    if (lpEl) { lpEl.classList.remove("lp"); lpEl = null; }
+    if (!name) return;
+    // 複数選択モード: その取引先を追加・解除する
+    var i = ui.viewClients.indexOf(name);
+    if (i >= 0) ui.viewClients.splice(i, 1);
+    else ui.viewClients.push(name);
+    lpFired = true; // 次に来るclickを1回だけ捨てる(押している時間の長さに関係なく効く)
+    try { if (typeof navigator.vibrate === "function") navigator.vibrate(30); } catch (e) { /* 非対応環境では何もしない */ }
+    render();
+  }, LONG_PRESS_MS);
+}
+document.addEventListener("touchstart", function (ev) {
+  lastTouchAt = Date.now();
+  lpStart(ev);
+}, { passive: true });
+document.addEventListener("touchend", function () { lastTouchAt = Date.now(); lpCancel(); }, { passive: true });
+document.addEventListener("touchcancel", lpCancel, { passive: true });
+document.addEventListener("touchmove", function () { lastTouchAt = Date.now(); lpCancel(); }, { passive: true });
+document.addEventListener("mousedown", function (ev) {
+  if (Date.now() - lastTouchAt < 1000) return; // タッチ端末が出す擬似マウスイベントは無視する
+  lpStart(ev);
+});
+document.addEventListener("mouseup", lpCancel);
+// 押している最中にチップの外へカーソルが出たらキャンセルする(mouseleaveは伝播しないのでキャプチャで拾い、
+// 対象が長押し中のチップのときだけ止める。無関係な要素のmouseleaveでは止めない)
+document.addEventListener("mouseleave", function (ev) {
+  if (lpEl && ev.target === lpEl) lpCancel();
+}, true);
+
+document.addEventListener("click", function (ev) {
+  var t = ev.target;
+  var el = (t && t.closest) ? t.closest("[data-act]") : null;
+  if (!el || el.disabled) return;
+  // 長押しが成立した直後のclickは1回だけ無視する(二重発火防止)
+  if (el.dataset.act === "client-tab" && lpFired) {
+    lpFired = false;
+    return;
+  }
+  var fn = ACTIONS[el.dataset.act];
+  if (fn) fn(el);
+});
+document.addEventListener("input", function (ev) {
+  var el = ev.target;
+  if (!el || !el.dataset || !el.dataset.input) return;
+  var kind = el.dataset.input;
+  if (kind === "pending") updPending(el.dataset.id, el.dataset.field, el.value);
+  else if (kind === "draft") updDraft(el.dataset.field, el.value);
+  else if (kind === "import-text") ui.importText = el.value;
+  else if (kind === "bill-amt") {
+    // 請求先ごとの金額入力(2026-07-21改修A): bills[bidx].amount を更新し、自分負担の表示だけ差し替える
+    var bt = billTargetOf(el.dataset.scope, el.dataset.id || "");
+    var bx = bt && Array.isArray(bt.bills) ? bt.bills[Number(el.dataset.bidx)] : null;
+    if (bx) {
+      bx.amount = el.value;
+      markDirty();
+      var ownBox = document.getElementById(billOwnId(el.dataset.scope, el.dataset.id || ""));
+      if (ownBox) ownBox.innerHTML = billOwnHtml(bt);
+    }
+  }
+  // 人数・金額の入力中は「1人あたり・5,000円判定」「自分負担」の表示部分だけをその場で更新する
+  // (画面全体を描き直すと入力欄のフォーカスが外れるため、該当ブロックのみ差し替える)
+  if ((kind === "pending" || kind === "draft") && (el.dataset.field === "persons" || el.dataset.field === "amount")) {
+    var obj = kind === "draft" ? state.editDraft : findPendingById(el.dataset.id);
+    var box = document.getElementById(personsCalcId(kind, el.dataset.id || ""));
+    if (obj && box) box.innerHTML = personsCalcHtml(kind, el.dataset.id || "", obj, "");
+    var ob2 = document.getElementById(billOwnId(kind, el.dataset.id || ""));
+    if (obj && ob2 && el.dataset.field === "amount") ob2.innerHTML = billOwnHtml(obj);
+  }
+});
+document.addEventListener("change", function (ev) {
+  var el = ev.target;
+  if (!el || !el.dataset) return;
+  // 人数の直接入力の確定(フォーカスが外れたとき): 会食科目の自動セット(2026-07-21改修B)を反映して描き直す
+  if (el.dataset.input && (el.dataset.input === "pending" || el.dataset.input === "draft") && el.dataset.field === "persons") {
+    var t = billTargetOf(el.dataset.input, el.dataset.id || "");
+    if (t) {
+      autoSetCat(t);
+      markDirty();
+      render();
+    }
+    return;
+  }
+  if (!el.dataset.change) return;
+  var kind = el.dataset.change;
+  if (kind === "pending") {
+    // 科目プルダウン=手動選択(2026-07-21改修B: 以降自動セットしない・学習は従来どおり)
+    if (el.dataset.field === "category") setCategoryManual("pending", el.dataset.id, el.value);
+    else updPendingR(el.dataset.id, el.dataset.field, el.value);
+  }
+  else if (kind === "pending-client") pendingClientSel(el.dataset.id, el.value);
+  else if (kind === "draft") {
+    if (el.dataset.field === "category") setCategoryManual("draft", "", el.value);
+    else updDraftR(el.dataset.field, el.value);
+  }
+  else if (kind === "draft-client") draftClientSel(el.value);
+  else if (kind === "entry-cat") changeEntryCategory(el.dataset.id, el.value);
+});
+document.addEventListener("focusin", function (ev) {
+  var el = ev.target;
+  if (el && el.dataset && el.dataset.focus === "select" && el.select) el.select();
+});
+
+// ---------- 起動 ----------
+// 補強(2026-07-20・壁打ち補強案7): 容量整理でこのサイトのデータを消さないようブラウザにお願いする。
+// navigator.storage.persist = 「保存データを保護対象にして」と頼むAPI(Chrome系で有効・Safariでは効果薄)。
+// 断られても・非対応でも動作に影響はない(あくまで保険)
+try {
+  if (navigator.storage && typeof navigator.storage.persist === "function") {
+    navigator.storage.persist().catch(function () { /* 断られても何もしない */ });
+  }
+} catch (e) { /* 非対応環境では何もしない */ }
+loadState();
+render();
+renderPage();
+</script>
+
+</body>
+</html>
