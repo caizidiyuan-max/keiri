@@ -335,6 +335,39 @@
   .copy-block { background: var(--card); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px; font-size: 13px; line-height: 1.7; margin: 6px 0; }
   .sub-act { font-size: 15px; color: var(--blue); background: var(--card); border: 1.5px solid var(--blue); border-radius: 8px; padding: 10px 12px; font-weight: 700; margin: 4px 8px 4px 0; min-height: 44px; }
 
+  /* 折りたたみ見出し(2026-07-21改修14-3: 設定ページは見出しだけが並ぶ形。既定は全部閉じる) */
+  .sec-head {
+    width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: none; border: none; padding: 0; text-align: left;
+    font-family: var(--font-ud); font-size: 17px; font-weight: 800; color: var(--ink); min-height: 44px;
+  }
+  .sec-head .mark { flex-shrink: 0; font-size: 14px; font-weight: 800; color: var(--blue); }
+  .sec-body { margin-top: 4px; }
+
+  /* メイン画面の「チャットへのお願い文」(2026-07-21改修14-1: 既定は畳んだ状態) */
+  .ask-box { margin-bottom: 12px; background: var(--card); border: 1.5px solid var(--line); border-radius: 12px; padding: 8px 12px; }
+  .ask-box .sec-head { font-size: 16px; }
+
+  /* 名前の統合(2026-07-21改修14-4) */
+  .merge-tabs { display: flex; gap: 8px; margin-bottom: 8px; }
+  .merge-tabs button {
+    flex-grow: 1; min-height: 48px; font-size: 15px; font-weight: 800; border-radius: 10px;
+    background: var(--card); border: 1.5px solid var(--ink); color: var(--ink);
+  }
+  .merge-tabs button.on { background: var(--ink); color: #FFF; border-color: var(--ink); }
+  .merge-pick { margin-bottom: 8px; }
+  .merge-pick .lb { font-size: 14px; font-weight: 800; color: var(--sub); margin-top: 6px; }
+  .merge-pick select { width: 100%; font-size: 16px; padding: 12px 10px; min-height: 52px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); font-family: var(--font-ud); }
+  .merge-go { width: 100%; min-height: 52px; font-size: 16px; font-weight: 800; color: #FFF; background: var(--purple); border: none; border-radius: 10px; margin-top: 8px; }
+  .merge-hit { border: 1.5px solid var(--purple); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; background: var(--purple-bg); }
+  .merge-hit .pair { font-size: 15px; font-weight: 800; color: var(--ink); line-height: 1.6; }
+  .merge-hit .why { font-size: 13px; font-weight: 700; color: var(--sub); }
+  .merge-hit button {
+    display: block; width: 100%; margin-top: 6px; min-height: 48px; font-size: 15px; font-weight: 800;
+    background: var(--card); border: 1.5px solid var(--purple); color: var(--purple); border-radius: 10px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 8px;
+  }
+
   /* CSVパネル */
   .sheet-back { position: fixed; inset: 0; display: flex; align-items: flex-end; justify-content: center; background: rgba(32,36,43,0.5); z-index: 50; }
   .sheet { width: 100%; max-width: 448px; background: var(--card); border: 1.5px solid var(--ink); border-bottom: none; border-radius: 14px 14px 0 0; max-height: 80vh; overflow-y: auto; padding: 16px 14px; }
@@ -345,6 +378,33 @@
   .sheet .copy { flex-grow: 1; padding: 13px; min-height: 52px; background: var(--blue); color: #FFF; border: none; border-radius: 10px; font-size: 16px; font-weight: 800; }
   .sheet .dl { padding: 13px; min-height: 52px; background: var(--card); color: var(--blue); border: 2px solid var(--blue); border-radius: 10px; font-size: 15px; font-weight: 700; }
   .sheet .hint { font-size: 14px; color: var(--sub); font-weight: 700; line-height: 1.7; margin-bottom: 8px; }
+  /* CSVの月別出力と出力状態(2026-07-21改修15) */
+  .csv-status { font-size: 14px; font-weight: 700; color: var(--ink); margin: 4px 0 8px; }
+  .csv-scope { margin-bottom: 8px; }
+  .csv-scope .two { display: flex; gap: 8px; }
+  .csv-scope .two button { flex: 1 1 0; min-width: 0; }
+  .csv-scope button {
+    width: 100%; min-height: 48px; font-size: 14px; font-weight: 800; margin-bottom: 8px;
+    background: var(--card); border: 1.5px solid var(--blue); color: var(--blue); border-radius: 10px;
+    padding: 8px 6px;
+  }
+  .csv-scope button.on { background: var(--blue); color: #FFF; border-color: var(--blue); }
+  /* 範囲の内訳は2行目に固定して、375pxで折り返しが崩れないようにする(2026-07-22改修17-2) */
+  .csv-scope .two button { line-height: 1.35; padding: 6px 4px; }
+  .csv-scope .sub { display: block; font-size: 12px; font-weight: 700; }
+  .csv-one { font-size: 14px; font-weight: 700; color: var(--sub); }
+  /* 出力の対象を押す前に見せる1行(2026-07-22改修16-2) */
+  .csv-target {
+    font-size: 14px; font-weight: 700; color: var(--ink); line-height: 1.6;
+    background: var(--blue-bg); border: 1.5px solid var(--blue); border-radius: 10px;
+    padding: 8px 10px; margin-bottom: 8px;
+  }
+  .csv-none { font-size: 15px; font-weight: 800; color: var(--sub); padding: 10px 0; }
+  /* 出力済み=控えめ / 改訂=背景グレー+文字(色だけに頼らない三重符号化) */
+  .entry-row.is-revised { background: #ECEEF1; }
+  .exp-done { color: var(--sub); font-weight: 700; }
+  .exp-rev { color: var(--warn); font-weight: 800; }
+  .entry-quick.exp-row { padding-top: 0; }
 
   /* 請 割り勘・立替 欄(2026-07-21改修E: 紫=請求系。2px枠+紫背景+見出しラベル「請」の三重区別。既定は閉) */
   .bill-badge {
@@ -359,6 +419,13 @@
   }
   .bill-toggle .sum { color: var(--purple); font-variant-numeric: tabular-nums; }
   .bill-toggle.head { border: none; padding: 0 0 4px; min-height: auto; margin-bottom: 4px; background: none; }
+  /* グレーアウト(2026-07-21改修14-5: 回収・マイナスのときは割り勘・立替を操作不可にする) */
+  /* 薄くしすぎると文字が読めなくなるので、透過ではなく「灰色の枠+灰色の文字+使いませんの表示」で示す */
+  .bill-toggle.off {
+    border: 2px dashed var(--line); color: var(--sub); background: var(--bg);
+    cursor: default; margin-bottom: 4px;
+  }
+  .bill-toggle.off .bill-badge { background: var(--sub); }
   .bill-box { border: 2px solid var(--purple); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; background: var(--purple-bg); }
   .bill-box .quick { display: flex; gap: 8px; margin: 4px 0 8px; }
   .bill-box .quick button {
@@ -482,6 +549,9 @@
   </div>
   <button class="btn btn-outline-ai" data-act="toggle-import">読み取り結果を貼り付けて取り込み</button>
   <div id="importPanel"></div>
+  <!-- チャットへのお願い文(2026-07-21改修14-1 ユーザー指示): 1ページ目に置き、既定は畳んだ状態。
+       見出しをタップで開閉し、開くと文面と「お願い文をコピー」ボタンが出る -->
+  <div id="askBox"></div>
 
   <div id="bulkArea"></div>
   <div id="pendings"></div>
@@ -531,6 +601,8 @@ var ASK_TEXT = [
   "【値のルール】",
   "・日付は YYYY-MM-DD(読めなければ今日)",
   "・金額は税込合計の整数(円)。¥やカンマは付けない",
+  // 店舗名まで書くルール(2026-07-21改修14-2 ユーザー指示)。.claude\skills\receipt-to-ledger\SKILL.md と同じ文言にそろえる
+  "・店名は支店・店舗名まで書く(例: スターバックス 渋谷店 / ヨドバシカメラ 新宿西口店)。読み取れないときは店名だけでよい",
   "・勘定科目は次の15個だけから選ぶ: " + CATEGORIES.join("、"),
   "・支払方法は次の5個だけ: " + PAYMENTS.join("、") + "(レシートの記載を根拠に。不明なら現金)",
   "・飲食の科目は5,000円ルール: 1人あたり5,000円以下=会議費、超=接待交際費(判定は 金額≦5000×人数)。人数はレシートから読めたときだけ10列目とメモ「○名」に入れ、読めなければ10列目は空・総額≦5,000円なら会議費/超なら接待交際費とする(アプリで人数を入れれば自動で判定し直される)。人数や相手を私に質問しない",
@@ -581,12 +653,30 @@ var ui = {
   page: "",          // "" | "clients" | "settings" | "bills"
   csvOpen: false,
   csvText: "",
+  // CSV出力の月別化(2026-07-21改修15): 出す範囲の選択と、いま本文に入っている行のid
+  csvScope: "month", // "month" | "need"(未出力・改訂だけ) | "all" | "one"(台帳の1件だけ)
+  csvMonth: "",      // 出力する月 "YYYY-MM"
+  csvIds: [],        // いま本文に入っている記帳のid(出力できたらこの行だけ出力済みにする)
+  // ファイル保存の確認待ち(2026-07-22改修16-1)。ブラウザ標準の保存は成否が分からないため、
+  // 「保存できましたか?」と聞いて、本人が押したときだけ出力済みにする
+  csvSaveAsk: null,  // null | {ids: [...]}
   copyMsg: "",
   selfTestMsg: "",
   jsonMsg: "",
   logMsg: "",            // 削除ログ操作の結果表示
   logClearConfirm: false, // 削除ログのクリア確認中
   newClientName: "",
+  // メイン画面の「チャットへのお願い文」(2026-07-21改修14-1): 既定は畳んだ状態
+  askOpen: false,
+  askMsg: "",
+  // 設定ページの折りたたみ(2026-07-21改修14-3): キー=セクション名。未設定なら既定値(現在の状態だけ開く)
+  secOpen: {},
+  // 名前の統合(2026-07-21改修14-4)
+  mergeKind: "client",   // "client"=取引先名 / "store"=店名
+  mergeFrom: "",         // 統合したい名前(この名前が消えて、まとめ先に変わる)
+  mergeTo: "",           // まとめ先(正式名)
+  mergeConfirm: null,    // 確認中 {kind, from, to, entryCount, billCount, ruleCount}
+  mergeMsg: "",
   // 保存状態の常時表示(2026-07-21 ユーザー指示)
   dirty: false,          // 未保存の変更あり(markDirtyでON・保存成功でOFF)
   justSavedMsg: "",      // 手動保存ボタンの「保存しました HH:MM」表示(次の変更で消える)
@@ -826,6 +916,7 @@ function markDirty() {
   // 回収行の自動反映(2026-07-21改修11-7): データが変わるたびにゼロから計算し直す(冪等なので二重反映しない)。
   // ここに置くことで、承認・編集・削除・幽霊解除・手動回収など、どの経路で変わっても取りこぼさない
   applyCollections();
+  expMonthCache = null;   // 出力済みの月の一覧も作り直す(2026-07-21改修15)
   ui.dirty = true;        // 未保存の変更あり(2026-07-21 保存状態表示)
   ui.justSavedMsg = "";   // 「保存しました」表示は次の変更で消す
   renderSaveBar();
@@ -1193,6 +1284,15 @@ function updPending(id, field, value) {
   markDirty();
 }
 function updPendingR(id, field, value) { updPending(id, field, value); render(); }
+// 回収の行の店名を取引先名にそろえる(2026-07-21改修14-6 ユーザー指示)。
+// 取引先を選ぶ・変えるたびに「(取引先名)から回収」に書き直す(手で書いた店名は上書きしてよい)。
+// 取引先が空のときは何もしない(店名欄は従来どおりplaceholderのまま)
+function syncCollectStore(obj) {
+  if (!obj || obj.collect !== true) return;
+  var c = String(obj.client || "").trim();
+  if (!c) return;
+  obj.store = c + "から回収";
+}
 function pendingClientSel(id, value) {
   if (value === "__ADD__") {
     updPending(id, "client", "");
@@ -1200,6 +1300,8 @@ function pendingClientSel(id, value) {
   } else {
     updPending(id, "client", value);
     updPending(id, "clientAdding", false);
+    syncCollectStore(findPendingById(id));
+    markDirty();
   }
   render();
 }
@@ -1607,6 +1709,8 @@ function draftClientSel(value) {
   } else {
     updDraft("client", value);
     updDraft("clientAdding", false);
+    syncCollectStore(state.editDraft);   // 回収の行は店名を「(取引先名)から回収」にそろえる(2026-07-21改修14-6)
+    markDirty();
   }
   render();
 }
@@ -1771,21 +1875,134 @@ function csvTargets() {
     return e.ghost !== true && entryOwn(e) !== 0;
   });
 }
-function buildCsv() {
+function csvRowOf(e) {
+  return [e.date, e.store, entryOwn(e), e.category, e.payment || "現金", e.client || "", e.memo];
+}
+function buildCsvFrom(list) {
   // 7列(2026-07-21 確定申告用に純化・ユーザー指示)。「金額」=自分負担(総額−Σ請求分)で、そのまま申告に転記できる。
   // 立替分(請求分・請求先)・回収状態・人数はCSVに出さない(全データの控えはJSON控えの役目)。
   // BOM付きUTF-8・日付昇順・全セルクォートは従来どおり
   var header = "日付,店名,金額,勘定科目,支払方法,取引先,メモ";
-  var rows = csvTargets().slice()
-    .sort(function (a, b) { return a.date.localeCompare(b.date); })
-    .map(function (e) {
-      return [e.date, e.store, entryOwn(e), e.category, e.payment || "現金", e.client || "", e.memo]
-        .map(csvCell).join(",");
-    });
+  var rows = list.slice()
+    .sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); })
+    .map(function (e) { return csvRowOf(e).map(csvCell).join(","); });
   return "﻿" + [header].concat(rows).join("\n");
 }
+function buildCsv() { return buildCsvFrom(csvTargets()); }
+
+// ---------- 出力済み/改訂の管理(2026-07-21改修15 ユーザー指示) ----------
+// 「出力済にした月も、あとから経費が見つかることがある」ため、
+// 記帳1件ごとに「出力したときの内容の指紋(sig)」を持たせ、あとで変わったら「改訂」として拾えるようにする。
+// entry.exported = { at:"YYYY-MM-DD", sig:"..." }(無ければ未出力)。金額の計算には一切関わらない印。
+
+// CSVに出る内容だけから作る短い指紋。これが変われば「出力したときと中身が違う」= 改訂ありと分かる。
+// (人数・請求分・回収状態はCSVに出ないので、変えても改訂にはならない)
+function csvSig(e) {
+  var s = csvRowOf(e).join("");
+  var h1 = 5381, h2 = 52711;
+  for (var i = 0; i < s.length; i++) {
+    var c = s.charCodeAt(i);
+    h1 = ((h1 * 33) ^ c) >>> 0;
+    h2 = ((h2 * 31) ^ c) >>> 0;
+  }
+  return h1.toString(36) + h2.toString(36);
+}
+// その月に1件でも出力済みがあるか(出力済みの月に後から足された行を「改訂」として見せるために使う)
+var expMonthCache = null;
+function exportedMonths() {
+  if (expMonthCache) return expMonthCache;
+  var m = {};
+  state.entries.forEach(function (e) {
+    if (e.exported && e.exported.at) m[String(e.date || "").slice(0, 7)] = true;
+  });
+  expMonthCache = m;
+  return m;
+}
+// 1件の状態: "none"=CSVに出ない行(印を付けない) / "new"=未出力 / "done"=出力済み / "revised"=改訂あり
+function exportState(e) {
+  if (!e || e.ghost === true || entryOwn(e) === 0) return "none";
+  var ex = e.exported;
+  if (!ex || !ex.at) {
+    // 出力済みの月にあとから足された行も「改訂(要再出力)」として扱う
+    return exportedMonths()[String(e.date || "").slice(0, 7)] ? "revised" : "new";
+  }
+  return ex.sig === csvSig(e) ? "done" : "revised";
+}
+// まだ出す必要がある行(未出力+改訂)。「未出力・改訂分だけ出力」で使う
+function csvNeedsExport() {
+  return csvTargets().filter(function (e) { return exportState(e) !== "done"; });
+}
+function csvMonthsAll() {
+  var set = {};
+  csvTargets().forEach(function (e) { set[String(e.date || "").slice(0, 7)] = 1; });
+  return Object.keys(set).sort(function (a, b) { return b.localeCompare(a); });
+}
+// いま出力しようとしている行(パネルの選択に対応)
+function csvScopeList() {
+  if (ui.csvScope === "one") {
+    return csvTargets().filter(function (e) { return ui.csvIds.indexOf(e.id) !== -1; });
+  }
+  if (ui.csvScope === "need") return csvNeedsExport();
+  if (ui.csvScope === "month") {
+    return csvTargets().filter(function (e) { return String(e.date || "").slice(0, 7) === ui.csvMonth; });
+  }
+  return csvTargets();
+}
+// パネルの本文を組み直す(出力の対象=ui.csvIds もここで決める)
+function csvRefresh() {
+  var list = csvScopeList();
+  ui.csvIds = list.map(function (e) { return e.id; });
+  ui.csvText = buildCsvFrom(list);
+}
+// 出力できたときだけ印をつける(コピー失敗・保存取消のときは付けない)
+function markExported(ids) {
+  var at = todayStr();
+  var n = 0;
+  state.entries.forEach(function (e) {
+    if (ids.indexOf(e.id) === -1) return;
+    e.exported = { at: at, sig: csvSig(e) };
+    n++;
+  });
+  if (n > 0) { expMonthCache = null; markDirty(); }
+  return n;
+}
+function setCsvScope(scope, month) {
+  ui.csvScope = scope;
+  if (month) ui.csvMonth = month;
+  ui.copyMsg = "";
+  // 出力範囲を切り替えたら、直前の保存の確認は消す(2026-07-22改修17-1・最終確認 問題12)。
+  // 残すと「出力済みにする(3件)」と新しい範囲の件数が食い違って見える
+  ui.csvSaveAsk = null;
+  csvRefresh();
+  render();
+}
+// 台帳の行から「この1件を出力」
+function exportOne(id) {
+  ui.csvScope = "one";
+  ui.csvIds = [id];
+  ui.copyMsg = "";
+  csvRefresh();
+  ui.csvOpen = true;
+  render();
+}
+// 台帳の行から「出力済みにする / 戻す」の手動切替
+function toggleExported(id) {
+  for (var i = 0; i < state.entries.length; i++) {
+    var e = state.entries[i];
+    if (e.id !== id) continue;
+    if (e.exported && e.exported.at && e.exported.sig === csvSig(e)) e.exported = null;
+    else e.exported = { at: todayStr(), sig: csvSig(e) };   // 手動でも指紋を残す(以後の改訂検知が効く)
+    break;
+  }
+  expMonthCache = null;
+  markDirty();
+  render();
+}
 function openCsv() {
-  ui.csvText = buildCsv();
+  var months = csvMonthsAll();
+  ui.csvScope = "month";
+  ui.csvMonth = months.indexOf(ui.csvMonth) !== -1 ? ui.csvMonth : (months[0] || todayStr().slice(0, 7));
+  csvRefresh();
   ui.csvOpen = true;
   ui.copyMsg = "";
   render();
@@ -1793,6 +2010,10 @@ function openCsv() {
 function closeCsv() {
   ui.csvOpen = false;
   ui.csvText = "";
+  // 閉じたら保存の確認も終わりにする(2026-07-22改修17-1・最終確認 問題12)。
+  // 開き直したときに、前の操作の確認パネルが残っていると何の確認か分からなくなる
+  ui.csvSaveAsk = null;
+  ui.copyMsg = "";
   render();
 }
 function markBackup() {
@@ -1807,21 +2028,41 @@ function copyText(text, done, fail) {
   }
 }
 function copyCsv() {
+  var ids = ui.csvIds.slice();   // 押した時点の対象を控える(あとで選び直されてもズレないように)
+  // 出す行が無いときは何もしない(2026-07-22改修16-3・検証12 問題3)。
+  // ヘッダーだけをコピーして「控えを取った」ことにすると、7年保存の督促が空振りする
+  if (ids.length === 0) {
+    ui.copyMsg = "出力する行がありません。";
+    render();
+    return;
+  }
+  ui.csvSaveAsk = null;
   copyText(ui.csvText, function () {
     markBackup();
-    ui.copyMsg = "コピーしました。Googleドライブや自分宛メールなど、端末の外に貼り付けて控えを保存してください(実施日を記録しました)。";
+    // 出力できたときだけ、その行を出力済みにする(2026-07-21改修15)
+    var n = markExported(ids);
+    ui.copyMsg = "コピーしました(" + n + "件を出力済みにしました)。Googleドライブや自分宛メールなど、端末の外に貼り付けて控えを保存してください。";
     render();
   }, function () {
-    ui.copyMsg = "自動コピーができませんでした。下の枠をロングタップ→全選択→コピーしてください。";
+    ui.copyMsg = "自動コピーができませんでした。下の枠をロングタップ→全選択→コピーしてください(出力済みにはしていません)。";
     render();
   });
 }
 function downloadCsv() {
+  var ids = ui.csvIds.slice();   // 押した時点の対象を控える(2026-07-21改修15)
+  if (ids.length === 0) {        // 0件のときは保存もしない(2026-07-22改修16-3)
+    ui.copyMsg = "出力する行がありません。";
+    render();
+    return;
+  }
+  ui.csvSaveAsk = null;
   if (window.claude && window.claude.downloads) {
+    // この経路(Artifact)は保存の成否が分かるので、成功したときだけ印を付ける
     window.claude.downloads.save({ filename: "経理台帳_" + todayStr() + ".txt", data: ui.csvText })
       .then(function () {
         markBackup();
-        ui.copyMsg = "保存しました(拡張子は .txt です。Excelで使うときはファイル名の末尾を .csv に変えても、そのままExcelで開いても大丈夫です)。";
+        var n = markExported(ids);
+        ui.copyMsg = "保存しました(" + n + "件を出力済みにしました。拡張子は .txt です。Excelでそのまま開けます)。";
         render();
       }, function (err) {
         if (err && err.code === "declined") {
@@ -1833,7 +2074,10 @@ function downloadCsv() {
       });
     return;
   }
-  // ブラウザ標準のダウンロード(通常のブラウザで開いている場合)
+  // ブラウザ標準のダウンロード(公開URL・スマホのブラウザはこちら)。
+  // 【2026-07-22改修16-1・検証12 問題1】この経路は保存できたかどうかが分からない
+  // (端末側で保存をやめても、ブロックされても、ここには何も返ってこない)。
+  // そのため勝手に印を付けず、保存できたかを本人に確かめてから印を付ける
   try {
     var blob = new Blob([ui.csvText], { type: "text/csv;charset=utf-8;" });
     var url = URL.createObjectURL(blob);
@@ -1844,11 +2088,26 @@ function downloadCsv() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    markBackup();
-    ui.copyMsg = "保存を開始しました。";
+    ui.csvSaveAsk = { ids: ids };   // 確認待ち(この時点では出力済みにしない・控えの日付も動かさない)
+    ui.copyMsg = "";
   } catch (e) {
+    ui.csvSaveAsk = null;
     ui.copyMsg = "ファイル保存ができませんでした。「全文をコピー」をお使いください。";
   }
+  render();
+}
+// 「保存できた」と本人が押したときだけ、出力済みにして控えの日付も記録する(2026-07-22改修16-1)
+function csvSaveAskGo() {
+  if (!ui.csvSaveAsk) return;
+  var ids = ui.csvSaveAsk.ids || [];
+  ui.csvSaveAsk = null;
+  markBackup();
+  ui.copyMsg = "" + markExported(ids) + "件を出力済みにしました。";
+  render();
+}
+function csvSaveAskStop() {
+  ui.csvSaveAsk = null;
+  ui.copyMsg = "出力済みにしませんでした(もう一度保存できます)。";
   render();
 }
 
@@ -2034,7 +2293,15 @@ function sanitizeEntry(e) {
     // 回収行が実際に消し込んだ金額(2026-07-21改修11-7)。applyCollections が毎回計算し直すので、
     // 旧データ・不正値は0でよい(表示用の印)
     collectApplied: Number.isSafeInteger(Number(e.collectApplied)) ? Number(e.collectApplied) : 0,
-    collectUnused: Number.isSafeInteger(Number(e.collectUnused)) ? Number(e.collectUnused) : 0
+    collectUnused: Number.isSafeInteger(Number(e.collectUnused)) ? Number(e.collectUnused) : 0,
+    // CSVの出力済みの印(2026-07-21改修15)。旧データ(この項目が無い)は「未出力」として扱う。
+    // at=出力した日 / sig=出力したときの内容の指紋。形が違うものは捨てる(未出力に倒す)
+    exported: (function (v) {
+      if (!v || typeof v !== "object") return null;
+      var at = String(v.at || "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(at)) return null;
+      return { at: at, sig: String(v.sig || "") };
+    })(e.exported)
   };
 }
 function importJson() {
@@ -2128,6 +2395,11 @@ function openPage(name) {
   ui.jsonMsg = "";
   ui.logMsg = "";
   ui.logClearConfirm = false;
+  // 名前の統合(2026-07-21改修14-4)は、ページを開き直したら選び直しから始める
+  ui.mergeConfirm = null;
+  ui.mergeFrom = "";
+  ui.mergeTo = "";
+  ui.mergeMsg = "";
   renderPage();
 }
 function closePage() {
@@ -2135,15 +2407,355 @@ function closePage() {
   renderPage();
   render();
 }
+// お願い文のコピー(2026-07-21改修14-1: 置き場所をメイン画面へ移したので、結果表示もメイン画面側に出す)
 function copyAskText() {
   copyText(ASK_TEXT, function () {
-    ui.jsonMsg = "お願い文をコピーしました。チャットに写真と一緒に貼り付けてください。";
-    renderPage();
+    ui.askMsg = "コピーしました。チャットに写真と一緒に貼り付けてください。";
+    renderAskBox();
   }, function () {
-    ui.jsonMsg = "自動コピーができませんでした。上の枠を長押しして選択・コピーしてください。";
-    renderPage();
+    ui.askMsg = "自動コピーができませんでした。上の枠を長押しして選択・コピーしてください。";
+    renderAskBox();
   });
 }
+// ---------- 折りたたみセクション(2026-07-21改修14-3) ----------
+// 設定ページの各項目は既定で閉じておき、見出しのタップで開閉する。
+// 開閉の状態は ui.secOpen に持つので、中のボタン(保存テスト・JSONコピー等)で
+// renderPage() が走っても開いたままになる
+function secIsOpen(key, defOpen) {
+  return (key in ui.secOpen) ? !!ui.secOpen[key] : defOpen === true;
+}
+function secHtml(key, title, body, defOpen) {
+  var open = secIsOpen(key, defOpen);
+  return '<section>'
+    + '<button class="sec-head" data-act="sec-toggle" data-key="' + esc(key) + '" aria-expanded="' + (open ? "true" : "false") + '">'
+    + '<span>' + esc(title) + '</span><span class="mark">' + (open ? "とじる ▴" : "ひらく ▾") + '</span></button>'
+    + (open ? '<div class="sec-body">' + body + '</div>' : '')
+    + '</section>';
+}
+
+// ---------- 名前の表記ゆれの統合(2026-07-21改修14-4 ユーザー指示) ----------
+// 読み取りでカタカナ・ローマ字・漢字・「○○店」あり/なし などにばらついた名前を、ひとつの正式名にまとめる。
+// 統合でやることは「名前の置き換え」だけで、金額には一切さわらない(集計・請求・未回収は変わらない)。
+// 外部AIは使わず、下の nameKey / nameKeyLoose による判定だけで「もしかしてこれですか?」を出す。
+
+// 【2026-07-21改修14b・検証11 問題1の修正】判定を「保守的」に作り直しました。
+// 前の版は「部分一致」と「編集距離(1〜2文字ちがい)」でも似ていると見なしたため、
+// 「スターバックス 渋谷店」と「スターバックス 新宿店」、「第1駐車場」と「第2駐車場」、「田中」と「田村」まで
+// 「まとめませんか」と出していました(取り消せない操作を誤った相手にすすめていた)。
+// お願い文の「店名は支店・店舗名まで書く」ルールとも真正面から衝突します。
+// いまの判定は次の2つだけです。**誤提示ゼロを最優先**し、出す数が減るのは許容します
+// (自動で出なくても、下のプルダウンから手で選べば統合できます):
+//   ① 表記をそろえたキーが完全一致(全角半角・カタカナ/ひらがな・大文字小文字・空白・記号のちがいだけ)
+//   ② ①に加えて、前後の会社種別語(株式会社・(株)・Co.,Ltd 等)と末尾の敬称(さん・様 等)だけがちがう
+// 編集距離による提示は**廃止**しました。
+
+// 前後から落とす会社種別語(記号を消す前の形。「(株)」のようにカッコつきのものはここで落とす)
+var COMPANY_RAW = [
+  "co.,ltd.", "co.,ltd", "co.ltd.", "co.ltd", "corporation", "company",
+  "ltd.", "ltd", "inc.", "inc", "corp.", "corp",
+  "(株)", "(有)", "(合)", "(同)"
+];
+// 記号を消したあとの形で落とす会社種別語
+var COMPANY_KEY = [
+  "株式会社", "有限会社", "合同会社", "合資会社", "合名会社",
+  "一般社団法人", "一般財団法人", "公益社団法人", "公益財団法人", "特定非営利活動法人"
+];
+// 末尾だけから落とす敬称(先頭からは落とさない。「さんま」の「さん」を消さないため)
+var HONORIFICS = ["さん", "さま", "様", "氏", "くん", "君", "ちゃん", "殿", "御中"];
+// 表記の統一だけを行う(記号はまだ落とさない)
+function nameNorm(s) {
+  var t = String(s == null ? "" : s).trim();
+  if (!t) return "";
+  try { t = t.normalize("NFKC"); } catch (e) { /* 未対応環境ではそのまま */ }
+  t = t.toLowerCase();
+  // カタカナ → ひらがな(「スターバックス」と「すたーばっくす」を同じとみなす)
+  return t.replace(/[ァ-ヶ]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0x60); });
+}
+// 記号・空白・長音符を落とす。残すのは 数字・英字・かな・漢字・「々」。
+// 「々」を残すのは、落とすと「佐々木」が「佐木」になって別名と一致してしまうため(検証11 問題7)
+function nameKeyOf(t) { return String(t || "").replace(/[^0-9a-zぁ-ゖ々一-鿿]/g, ""); }
+// 前後(または末尾だけ)から語を落とす。空文字になるまでは削らない(名前が丸ごと消えるのを防ぐ)
+function stripAffix(t, words, tailOnly) {
+  var changed = true;
+  while (changed) {
+    changed = false;
+    for (var i = 0; i < words.length; i++) {
+      var w = words[i];
+      if (!w || t.length <= w.length) continue;
+      if (t.slice(-w.length) === w) { t = t.slice(0, t.length - w.length); changed = true; }
+      if (!tailOnly && t.length > w.length && t.slice(0, w.length) === w) { t = t.slice(w.length); changed = true; }
+    }
+  }
+  return t;
+}
+// ①用のキー(表記のちがいだけをならす)
+function nameKey(s) { return nameKeyOf(nameNorm(s)); }
+// ②用のキー(さらに会社種別語・敬称を落とす)
+function nameKeyLoose(s) {
+  var t = stripAffix(nameNorm(s), COMPANY_RAW, false);
+  var k = nameKeyOf(t);
+  k = stripAffix(k, COMPANY_KEY, false);
+  return stripAffix(k, HONORIFICS, true);
+}
+// 統合の対象名の一覧(取引先名 / 店名)。使用回数つきで多い順に返す
+function mergeNames(kind) {
+  var byName = {};
+  // 取引先名は「/」を全角にそろえた形で1本にまとめて数える(2026-07-21改修14b・検証11 問題2)。
+  // 記帳側は生の値・請求先側は全角、と食い違っていたため、同じ名前が一覧に2つ並んでいた
+  var clean = kind === "store" ? function (s) { return String(s == null ? "" : s).trim(); } : cleanBillName;
+  function add(n, c) {
+    var s = clean(n);
+    if (!s) return;
+    if (!byName[s]) byName[s] = 0;
+    byName[s] += c;
+  }
+  if (kind === "store") {
+    state.entries.forEach(function (e) { add(e.store, 1); });
+    state.rules.forEach(function (r) { add(r.store, 0); });
+  } else {
+    state.clientList.forEach(function (c) { add(c, 0); });
+    state.entries.forEach(function (e) {
+      add(e.client, 1);
+      (Array.isArray(e.bills) ? e.bills : []).forEach(function (b) { add(b.to, 1); });
+    });
+  }
+  return Object.keys(byName).map(function (n) { return { name: n, count: byName[n] }; })
+    .sort(function (x, y) { return y.count - x.count || x.name.localeCompare(y.name, "ja"); });
+}
+// 使用回数が同じときの「まとめ先」の選びかた。半角カナ(ﾊﾞ等)は避け、支店名まで入った長いほうを選ぶ。
+// あくまで既定値で、逆向きのボタンも必ず並べて出す(最後に決めるのはユーザー)
+function mergeRank(x) {
+  var halfKana = /[｡-ﾟ]/.test(x.name) ? 0 : 1;
+  return halfKana * 1000 + Math.min(x.name.length, 999);
+}
+function mergeBetter(a, b) { // b のほうが「まとめ先」にふさわしいか
+  return b.count > a.count || (b.count === a.count && mergeRank(b) > mergeRank(a));
+}
+// 「もしかしてこれですか?」の候補。多すぎても困るので上位12組まで。
+// 【2026-07-21改修14b・検証11 問題3の修正】総当たりの二重ループ(2,000件で10秒)をやめ、
+// **正規化キーでグループ化(ハッシュ)** する方式に変えました。名前の数に比例した時間で終わります。
+// 同じキーのグループでは「まとめ先」を1つ決め、その1つに対する組だけを出す(組み合わせ爆発を起こさない)
+var MERGE_MAX_HITS = 12;
+function mergeSuggestions(list) {
+  var byKey = {}, byLoose = {}, i, n;
+  for (i = 0; i < list.length; i++) {
+    n = list[i];
+    n._k = nameKey(n.name);        // キーは1名につき1回だけ計算して使い回す
+    n._lk = nameKeyLoose(n.name);
+    if (n._k) { (byKey[n._k] = byKey[n._k] || []).push(n); }
+    if (n._lk) { (byLoose[n._lk] = byLoose[n._lk] || []).push(n); }
+  }
+  var out = [];
+  // ① 表記のちがいだけ(キーが完全一致)
+  Object.keys(byKey).forEach(function (k) {
+    var g = byKey[k];
+    if (g.length < 2 || out.length >= MERGE_MAX_HITS) return;
+    var rep = g[0];
+    g.forEach(function (x) { if (mergeBetter(rep, x)) rep = x; });
+    g.forEach(function (x) {
+      if (x === rep || out.length >= MERGE_MAX_HITS) return;
+      out.push({ from: x.name, to: rep.name, why: "書き方だけのちがい" });
+    });
+  });
+  // ② 会社種別語・敬称だけのちがい(①で出した組は除く)
+  Object.keys(byLoose).forEach(function (lk) {
+    var g = byLoose[lk];
+    if (g.length < 2 || out.length >= MERGE_MAX_HITS) return;
+    var rep = g[0];
+    g.forEach(function (x) { if (mergeBetter(rep, x)) rep = x; });
+    var seen = {};
+    g.forEach(function (x) {
+      if (x._k === rep._k || seen[x._k] || out.length >= MERGE_MAX_HITS) return; // ①と重複する組は出さない
+      seen[x._k] = 1;
+      out.push({ from: x.name, to: rep.name, why: "会社名・敬称の書き方だけのちがい" });
+    });
+  });
+  return out;
+}
+// 名前の一覧と候補のキャッシュ(2026-07-21改修14b・検証11 問題3)。
+// 折りたたみの開閉・プルダウンの選び直し・「やめる」では作り直さず、
+// 名前の顔ぶれが変わったときだけ計算し直す
+var mergeCache = { kind: "", sig: "", names: null, hits: null };
+function mergeData(kind) {
+  var names = mergeNames(kind);
+  var sig = names.length + "" + names.map(function (n) { return n.name; }).join("");
+  if (mergeCache.kind === kind && mergeCache.sig === sig && mergeCache.names) return mergeCache;
+  mergeCache = { kind: kind, sig: sig, names: names, hits: mergeSuggestions(names) };
+  return mergeCache;
+}
+// 取引先の名前は必ず cleanBillName() を通して比べる・書き込む(2026-07-21改修14b・検証11 問題2)。
+// 記帳側は生の値・請求先側は全角変換後、と食い違っていたため、半角「/」入りの名前が
+// 統合しても2つに割れたまま「まとめました」と出ていた
+function sameClientName(a, b) { return cleanBillName(a) === cleanBillName(b); }
+// 回収行の店名「◯◯から回収」も取引先名に追随させる(2026-07-21改修14b・検証11 問題6)。
+// 自動でつけた形(「Aから回収」「Aさんから回収」)のときだけ書き換える。手で書いた店名は残す
+function renameCollectStore(obj, f, t) {
+  if (!obj || obj.collect !== true) return 0;
+  var s = String(obj.store || "").trim();
+  if (s === f + "から回収") { obj.store = t + "から回収"; return 1; }
+  if (s === f + "さんから回収") { obj.store = t + "さんから回収"; return 1; }
+  return 0;
+}
+// 統合したときに変わる件数を数える(確認パネル用。ここでは何も書き換えない)。
+// 【2026-07-21改修14b・検証11 問題4】承認待ち・編集中の下書き・台帳の絞り込みも数に入れる
+function mergeCounts(kind, from, to) {
+  var f = String(from || "").trim();
+  var r = { entry: 0, bill: 0, rule: 0, draft: 0, store: 0 };
+  if (!f) return r;
+  if (kind === "store") {
+    state.entries.forEach(function (e) { if (String(e.store || "").trim() === f) r.entry++; });
+    state.pendings.forEach(function (p) { if (String(p.store || "").trim() === f) r.draft++; });
+    if (state.editDraft && String(state.editDraft.store || "").trim() === f) r.draft++;
+    state.rules.forEach(function (x) { if (String(x.store || "").trim() === f) r.rule++; });
+  } else {
+    state.entries.forEach(function (e) {
+      if (sameClientName(e.client, f)) r.entry++;
+      (Array.isArray(e.bills) ? e.bills : []).forEach(function (b) { if (sameClientName(b.to, f)) r.bill++; });
+      // 回収行の店名が追随する件数(見た目だけの変更なので、記帳件数とは別に数える)
+      var st = String(e.store || "").trim();
+      if (e.collect === true && (st === f + "から回収" || st === f + "さんから回収")) r.store++;
+    });
+    state.pendings.forEach(function (p) {
+      if (sameClientName(p.client, f)) r.draft++;
+      (Array.isArray(p.bills) ? p.bills : []).forEach(function (b) { if (sameClientName(b.to, f)) r.draft++; });
+    });
+    if (state.editDraft) {
+      if (sameClientName(state.editDraft.client, f)) r.draft++;
+      (Array.isArray(state.editDraft.bills) ? state.editDraft.bills : []).forEach(function (b) { if (sameClientName(b.to, f)) r.draft++; });
+    }
+    ui.viewClients.forEach(function (c) { if (sameClientName(c, f)) r.draft++; });
+  }
+  return r;
+}
+// 統合の実行。名前の置き換えだけを行い、経費の金額には一切さわらない。
+// 置き換え後に applyCollections() を呼び直して、回収の消し込み(名前で相手を見ている)を作り直す。
+// 戻り値は「実際に書き換えた件数」(確認パネルの数ではなく、この数を完了表示に使う)
+function mergeApply(kind, from, to) {
+  var f = String(from || "").trim();
+  var t = String(to || "").trim();
+  var done = { entry: 0, bill: 0, rule: 0, draft: 0, store: 0 };
+  if (!f || !t) return done;
+  if (kind === "store") {
+    if (f === t) return done;
+    state.entries.forEach(function (e) { if (String(e.store || "").trim() === f) { e.store = t; done.entry++; } });
+    state.pendings.forEach(function (p) { if (String(p.store || "").trim() === f) { p.store = t; done.draft++; } });
+    if (state.editDraft && String(state.editDraft.store || "").trim() === f) { state.editDraft.store = t; done.draft++; }
+    // 学習ルール: 統合先のキーへまとめる(件数は足し、科目は件数の多かったほうを残す)
+    var merged = [];
+    var idxByKey = {};
+    state.rules.forEach(function (x) {
+      var st = String(x.store || "").trim() === f ? t : x.store;
+      if (st !== x.store) done.rule++;
+      var key = normalize(st);
+      if (!key) return;
+      var cnt = Number.isSafeInteger(Number(x.count)) && Number(x.count) > 0 ? Number(x.count) : 1;
+      if (idxByKey[key] === undefined) {
+        idxByKey[key] = merged.length;
+        merged.push({ key: key, store: st, category: x.category, count: cnt, _top: cnt });
+      } else {
+        var m = merged[idxByKey[key]];
+        if (cnt > m._top) { m.category = x.category; m.store = st; m._top = cnt; }
+        m.count += cnt;
+      }
+    });
+    state.rules = merged.map(function (m) { return { key: m.key, store: m.store, category: m.category, count: m.count }; });
+  } else {
+    // 比較も書き込みも cleanBillName を通した値でそろえる(半角「/」で割れないように)
+    var fc = cleanBillName(f);
+    var tc = cleanBillName(t);
+    state.entries.forEach(function (e) {
+      if (sameClientName(e.client, fc)) {
+        done.store += renameCollectStore(e, f, tc);   // 回収行の店名も追随させる
+        e.client = tc;
+        done.entry++;
+      }
+      (Array.isArray(e.bills) ? e.bills : []).forEach(function (b) { if (sameClientName(b.to, fc)) { b.to = tc; done.bill++; } });
+    });
+    state.pendings.forEach(function (p) {
+      if (sameClientName(p.client, fc)) {
+        done.store += renameCollectStore(p, f, tc);
+        p.client = tc;
+        done.draft++;
+      }
+      (Array.isArray(p.bills) ? p.bills : []).forEach(function (b) { if (sameClientName(b.to, fc)) { b.to = tc; done.draft++; } });
+    });
+    if (state.editDraft) {
+      if (sameClientName(state.editDraft.client, fc)) {
+        done.store += renameCollectStore(state.editDraft, f, tc);
+        state.editDraft.client = tc;
+        done.draft++;
+      }
+      (Array.isArray(state.editDraft.bills) ? state.editDraft.bills : []).forEach(function (b) {
+        if (sameClientName(b.to, fc)) { b.to = tc; done.draft++; }
+      });
+    }
+    // 取引先リスト: 統合元と、統合先の「/」ちがいの重複も消してから、そろえた形の統合先を1つだけ残す
+    state.clientList = state.clientList.filter(function (c) {
+      return !sameClientName(c, fc) && !sameClientName(c, tc);
+    });
+    addClientToList(tc);
+    // 台帳の絞り込みが統合元を指していたら、統合先に付け替える(この件数も下書きとして数える)
+    ui.viewClients = ui.viewClients.map(function (c) {
+      if (!sameClientName(c, fc)) return c;
+      done.draft++;
+      return tc;
+    }).filter(function (c, i, arr) { return arr.indexOf(c) === i; });
+    // 回収の消し込みは「取引先の名前」で相手を見ているので、名前を変えたら作り直す(経費の金額は変わらない)
+    applyCollections();
+  }
+  markDirty();
+  return done;
+}
+// 件数を読みやすい文にする(0件のものは書かない)
+function mergeCountText(c) {
+  var parts = [];
+  if (c.entry > 0) parts.push(c.entry + "件の記帳");
+  if (c.bill > 0) parts.push(c.bill + "件の請求先");
+  if (c.rule > 0) parts.push(c.rule + "件の学習");
+  if (c.draft > 0) parts.push(c.draft + "件の下書き");
+  if (c.store > 0) parts.push(c.store + "件の回収の店名");
+  return parts.join("・");
+}
+// 統合の確認を出す(取り消せない操作なので、必ずここを通す)。
+// 【2026-07-21改修14b・検証11 問題4】件数はここで固定せず、表示のたび・実行のたびに数え直す
+function mergeOpenConfirm(kind, from, to) {
+  var f = String(from || "").trim();
+  var t = String(to || "").trim();
+  ui.mergeMsg = "";
+  if (!f || !t) { ui.mergeMsg = "統合したい名前と、まとめ先の両方を選んでください。"; ui.mergeConfirm = null; renderPage(); return; }
+  // 取引先名は「/」を全角にそろえた形で比べる(見た目が違っても同じ名前なら統合の意味がない)
+  var same = kind === "store" ? f === t : sameClientName(f, t);
+  if (same && f === t) { ui.mergeMsg = "同じ名前どうしは統合できません。"; ui.mergeConfirm = null; renderPage(); return; }
+  ui.mergeKind = kind;
+  ui.mergeFrom = f;
+  ui.mergeTo = t;
+  ui.mergeConfirm = { kind: kind, from: f, to: t };   // 件数は持たない(古くならないように)
+  renderPage();
+}
+function mergeGo() {
+  var m = ui.mergeConfirm;
+  if (!m) return;
+  var done = mergeApply(m.kind, m.from, m.to);        // 実際に書き換えた件数を受け取る
+  ui.mergeConfirm = null;
+  ui.mergeFrom = "";
+  ui.mergeTo = "";
+  // 統合できたかを実際の一覧で確かめる(「まとめました」の空振りを出さない・検証11 問題2)
+  var left = mergeData(m.kind).names.some(function (n) {
+    return m.kind === "store" ? n.name === m.from : sameClientName(n.name, m.from);
+  });
+  var txt = mergeCountText(done);
+  if (left) {
+    ui.mergeMsg = "「" + m.from + "」はまとめきれませんでした。まとめ先を選び直してください"
+      + (txt ? "(" + txt + "は変わりました)" : "") + "。";
+  } else {
+    ui.mergeMsg = "「" + m.from + "」を「" + m.to + "」にまとめました"
+      + (txt ? "(" + txt + ")" : "")
+      + "。経費の金額は変わっていません(未回収・預かりは組み替わることがあります)。";
+  }
+  render();
+  renderPage();
+}
+
 function addClientFromPage() {
   var el = document.getElementById("newClientName");
   if (!el) return;
@@ -2154,7 +2766,11 @@ function addClientFromPage() {
 }
 function removeClient(name) {
   state.clientList = state.clientList.filter(function (c) { return c !== name; });
+  // 台帳の絞り込みも一緒に外す(2026-07-22改修16-4・検証12 問題4)。
+  // 残したままだと、チップが消えて解除できず、台帳が真っ白のまま戻せなくなる
+  ui.viewClients = ui.viewClients.filter(function (c) { return c !== name; });
   markDirty();
+  render();
   renderPage();
 }
 
@@ -2178,6 +2794,24 @@ function clientSelectHtml(current, onchangeAttr) {
     }).join("")
     + '<option value="__ADD__">＋ 新しい取引先を入力</option>'
     + '</select>';
+}
+
+// メイン画面の「チャットへのお願い文」(2026-07-21改修14-1 ユーザー指示)。
+// 既定は畳んだ状態。見出しをタップで開閉し、開いたときだけ文面とコピーボタンを出す
+function renderAskBox() {
+  var box = document.getElementById("askBox");
+  if (!box) return;
+  box.innerHTML = '<div class="ask-box">'
+    + '<button class="sec-head" data-act="ask-toggle" aria-expanded="' + (ui.askOpen ? "true" : "false") + '">'
+    + '<span>チャットへのお願い文</span><span class="mark">' + (ui.askOpen ? "とじる ▴" : "ひらく ▾") + '</span></button>'
+    + (ui.askOpen
+      ? '<div class="sec-body">'
+        + '<div class="copy-block mono" id="askBlock">' + esc(ASK_TEXT).replace(/\n/g, "<br>") + '</div>'
+        + '<button class="sub-act" data-act="copy-ask">お願い文をコピー</button>'
+        + (ui.askMsg ? '<div class="notice notice-info" style="margin-top:8px;">' + esc(ui.askMsg) + '</div>' : '')
+        + '</div>'
+      : '')
+    + '</div>';
 }
 
 function renderSummary() {
@@ -2660,6 +3294,9 @@ function collectMonth(month, collect) {
 }
 // 自分負担表示(入力中はこの部分だけ差し替える)
 function billOwnId(scope, id) { return scope === "draft" ? "billOwn-draft" : "billOwn-" + id; }
+// 「請 割り勘・立替」欄を丸ごと入れる箱のid(2026-07-21改修14-5)。
+// 金額を打っている最中にマイナスへ変わったら、この箱だけを差し替えてグレーアウトを反映する
+function billSecId(scope, id) { return scope === "draft" ? "billSec-draft" : "billSec-" + id; }
 function billOwnHtml(obj) {
   var amt = parseAmount(obj.amount);
   if (isNaN(amt) || amt < 0) return ''; // 金額が入るまでは何も出さない(2026-07-21改修12-3)
@@ -2680,23 +3317,28 @@ function billOwnHtml(obj) {
 function billSectionHtml(scope, id, obj, dis) {
   var key = scope === "draft" ? "__draft__" : id;
   var did = scope === "draft" ? "" : ' data-id="' + esc(id) + '"';
+  var headLabel = '<span><span class="bill-badge">請</span>割り勘・立替(相手に請求する分)</span>';
   var amt = parseAmount(obj.amount);
   var isNeg = !isNaN(amt) && amt < 0;
-  if (isNeg) {
-    // マイナス記帳(返金・値引き)は請求なし固定(入力欄ごと出さない)。
-    // 入っていた請求は消えるので、消える金額を1行で見せる(2026-07-21改修13-1)
+  var isCollect = obj.collect === true;
+  // グレーアウト(2026-07-21改修14-5 ユーザー指示): 金額がマイナスのとき、または回収モードのときは
+  // 割り勘・立替の入力欄を操作不可にする(誤操作防止)。金額をプラスに戻せば元どおり開ける。
+  // 入っていた請求が消えることの確認(2026-07-21改修13-1)は従来どおり残す
+  if (isNeg || isCollect) {
     var risk = billsRiskSum(obj);
-    if (risk.sum > 0) {
-      return '<div class="bill-note" style="margin-bottom:8px;color:var(--warn);font-weight:800;">'
-        + 'マイナスにすると請求 ' + esc(yen(risk.sum)) + '(' + risk.count + '名)は消えます。</div>';
-    }
-    return '<div class="bill-note" style="margin-bottom:8px;">マイナスの記帳では割り勘・立替は使いません。</div>';
+    var note = risk.sum > 0
+      ? '<div class="bill-note" style="margin-bottom:8px;color:var(--warn);font-weight:800;">'
+        + 'マイナスにすると請求 ' + esc(yen(risk.sum)) + '(' + risk.count + '名)は消えます。</div>'
+      : '<div class="bill-note" style="margin-bottom:8px;">'
+        + (isCollect ? '回収では割り勘・立替は使いません。' : 'マイナスの記帳では割り勘・立替は使いません。')
+        + '</div>';
+    return '<button class="bill-toggle off" type="button" disabled aria-disabled="true">'
+      + headLabel + '<span>使いません</span></button>' + note;
   }
   var bills = Array.isArray(obj.bills) ? obj.bills : [];
   var sum = billSum(bills);
   var hasBill = bills.length > 0;
   var open = (key in ui.billOpen) ? !!ui.billOpen[key] : hasBill;
-  var headLabel = '<span><span class="bill-badge">請</span>割り勘・立替(相手に請求する分)</span>';
   if (!open) {
     return '<button class="bill-toggle" data-act="bill-toggle" data-key="' + esc(key) + '" data-open="0"' + dis + '>'
       + headLabel
@@ -2946,7 +3588,7 @@ function pendingCardHtml(p, stamped) {
       : clientSelectHtml(p.client || "", 'data-change="pending-client"' + did + dis))
     + '</label>'
     + personsSectionHtml("pending", p.id, p, dis)
-    + billSectionHtml("pending", p.id, p, dis)
+    + '<div id="' + billSecId("pending", p.id) + '">' + billSectionHtml("pending", p.id, p, dis) + '</div>'
     + '<label class="field" style="margin-bottom:12px;"><span>メモ</span><input type="text" value="' + esc(p.memo) + '"'
     // 会食系の科目のときは人数・相手の記録を促す(税務調査時の説明材料になる)
     + ((p.category === "会議費" || p.category === "接待交際費") ? ' placeholder="例: 4名・○○社様"' : '')
@@ -3006,8 +3648,12 @@ function renderPendings() {
 
 function renderFilters() {
   var h = "";
+  // 選択中の取引先は、取引先リストからも記帳からも消えていても必ずチップに残す
+  // (2026-07-22改修16-4・検証12 問題4)。消えると解除する手段が画面から無くなり、台帳が真っ白になる
   var clients = getClients();
-  if (clients.length > 0 && state.entries.length > 0) {
+  ui.viewClients.forEach(function (c) { if (c && clients.indexOf(c) === -1) clients.push(c); });
+  clients.sort();
+  if ((clients.length > 0 && state.entries.length > 0) || ui.viewClients.length > 0) {
     // 取引先フィルタ(2026-07-21改修11-1): 通常タップ=その1件だけを選択(単一選択)/
     // 2秒の長押し=複数選択として追加・解除。「すべて」で解除(従来どおり)
     h += '<div class="tabs">'
@@ -3148,6 +3794,17 @@ function renderLedger() {
     return;
   }
   var filtered = getFilteredEntries();
+  // 絞り込みで1件も出ないとき(2026-07-22改修16-4・検証12 問題4)。
+  // 以前は何も出さなかったため、記帳が残っているのに台帳が真っ白で、戻す手段も分からなかった
+  if (filtered.length === 0 && state.entries.length > 0) {
+    el.innerHTML = '<div class="empty"><div class="title">この絞り込みでは記帳がありません</div>'
+      + (ui.viewClients.length > 0
+        ? '取引先「' + esc(ui.viewClients.join("・")) + '」で絞り込んでいます。<br>'
+          + '<button class="sub-act" data-act="client-tab" data-name="all" style="margin-top:8px;">すべて表示に戻す</button>'
+        : '記帳はありますが、いまの条件では表示されていません。')
+      + '</div>';
+    return;
+  }
   var byMonth = {};
   filtered.forEach(function (e) {
     var ym = String(e.date || "").slice(0, 7) || "不明";
@@ -3187,8 +3844,13 @@ function renderLedger() {
         var stTxt = paidCnt === bl.length ? "全回収" : ((paidCnt > 0 || partCnt > 0) ? "一部回収" : "未回収");
         billLabel = '・<span class="bill-inline">請求' + esc(yen(billSum(bl))) + '(' + bl.length + '名・' + stTxt + ')・自分' + esc(yen(entryOwn(e))) + '</span>';
       }
+      // CSVの出力状態(2026-07-21改修15): 未出力=何も出さない / 出力済み=✓と日付 / 改訂=背景グレー+「改訂」
+      var expSt = exportState(e);
+      var expLabel = expSt === "done"
+        ? '・<span class="exp-done">✓出力済 ' + esc(String(e.exported.at).slice(5).replace("-", "/")) + '</span>'
+        : (expSt === "revised" ? '・<span class="exp-rev">◇改訂</span>' : '');
       h += '<div class="entry">'
-        + '<button class="entry-row' + (isGhost ? " is-ghost" : "") + '" data-act="toggle-entry"' + did + '>'
+        + '<button class="entry-row' + (isGhost ? " is-ghost" : "") + (expSt === "revised" ? " is-revised" : "") + '" data-act="toggle-entry"' + did + '>'
         + catStampHtml(e.category)
         + '<span class="entry-main">'
         + '<span class="entry-store">' + (isGhost ? '👻 ' : '') + esc(e.store || "(店名なし)") + '</span>'
@@ -3206,7 +3868,7 @@ function renderLedger() {
             : esc(e.client) + 'は、この日(' + esc(e.date) + ')までの未回収がありません'
               + (e.collectUnused > 0 ? '(' + esc(yen(e.collectUnused)) + ' は預かり残高へ)' : '')) + '</span>'
           : "")
-        + billLabel + '</span>'
+        + billLabel + expLabel + '</span>'
         + '</span>'
         + '<span class="entry-amount' + (e.amount < 0 ? ' amount-minus' : '') + '">' + esc(yenDisp(e.amount)) + '</span>'
         + '</button>';
@@ -3228,7 +3890,7 @@ function renderLedger() {
           + '<label class="field"><span>支払方法</span>' + selectHtml(PAYMENTS, d.payment, 'data-change="draft" data-field="payment"') + '</label>'
           + '</div>'
           + personsSectionHtml("draft", d.id, d, "")
-          + billSectionHtml("draft", d.id, d, "")
+          + '<div id="' + billSecId("draft", d.id) + '">' + billSectionHtml("draft", d.id, d, "") + '</div>'
           + '<label class="field" style="margin-bottom:12px;"><span>メモ</span><input type="text" value="' + esc(d.memo) + '" data-input="draft" data-field="memo"></label>'
           // 幽霊ボタン(2026-07-21改修D): 表示・集計には残るがCSVには出さない切り替え
           + '<button class="ghost-btn' + (d.ghost ? " on" : "") + '" data-act="ghost-toggle">'
@@ -3266,7 +3928,13 @@ function renderLedger() {
           + catSelectHtml(e.category, 'data-change="entry-cat"' + did + catClassAttr(e.category))
           + '<button class="mini-btn-ai" data-act="start-edit"' + did + '>変更</button>'
           + '<button class="mini-btn-shu" data-act="delete-entry"' + did + '>削除</button>'
-          + '</div>';
+          + '</div>'
+          // 1行単位のCSV出力と、出力済みの手動切替(2026-07-21改修15)。CSVに出ない行には出さない
+          + (expSt === "none" ? '' : '<div class="entry-quick exp-row">'
+            + '<button class="mini-btn-ai" data-act="export-one"' + did + '>この1件を出力</button>'
+            + '<button class="mini-btn-ai" data-act="export-toggle"' + did + '>'
+            + (expSt === "done" ? '出力済みを戻す' : '出力済みにする') + '</button>'
+            + '</div>');
       }
       h += '</div>';
     });
@@ -3282,17 +3950,79 @@ function renderFooter() {
     : "";
 }
 
+// いま出力しようとしている行を「月ごとの件数」で1行にまとめる(2026-07-22改修16-2・検証12 問題2)。
+// 「未出力・改訂だけ」は全期間から拾うので、押す前にどの月が入るのかを必ず見せる
+function csvTargetLineHtml() {
+  var list = csvScopeList();
+  if (list.length === 0) return '出力する行: <strong>0件</strong>';
+  var byM = {};
+  list.forEach(function (e) {
+    var ym = String(e.date || "").slice(0, 7);
+    byM[ym] = (byM[ym] || 0) + 1;
+  });
+  var keys = Object.keys(byM).sort();
+  var parts = keys.map(function (ym) { return esc(monthLabel(ym)) + ' ' + byM[ym] + '件'; });
+  // 月が多いときは先頭3つ+「ほか○ヶ月」に丸める(1行に収めるため)
+  var txt = parts.length <= 3 ? parts.join('・') : parts.slice(0, 3).join('・') + '・ほか' + (parts.length - 3) + 'ヶ月';
+  return '出力する行: <strong>' + list.length + '件</strong>(' + txt + ')';
+}
 function renderCsvPanel() {
   var el = document.getElementById("csvLayer");
   if (!ui.csvOpen) { el.innerHTML = ""; return; }
+  // 月別の出力と「出力済み/改訂」の管理(2026-07-21改修15 ユーザー指示)
+  var months = csvMonthsAll();
+  var cur = months.indexOf(ui.csvMonth) !== -1 ? ui.csvMonth : (months[0] || todayStr().slice(0, 7));
+  var monthList = csvTargets().filter(function (e) { return String(e.date || "").slice(0, 7) === cur; });
+  var mDone = 0, mRev = 0, mNew = 0, lastAt = "";
+  monthList.forEach(function (e) {
+    var st = exportState(e);
+    if (st === "done") { mDone++; if (e.exported && e.exported.at > lastAt) lastAt = e.exported.at; }
+    else if (st === "revised") mRev++;
+    else mNew++;
+  });
+  var needCnt = csvNeedsExport().length;
+  var scope = ui.csvScope;
+  var onCls = function (s) { return scope === s ? " on" : ""; };
+  var noRow = ui.csvIds.length === 0;   // 0件のときはコピー・保存のボタンを出さない(2026-07-22改修16-3)
+  // 月の状態を1行で(色だけに頼らず、必ず文字で書く)
+  var statusLine = monthList.length === 0
+    ? 'この月にCSVに出る記帳はありません。'
+    : (mDone > 0 ? esc(lastAt.slice(5).replace("-", "/")) + ' 出力済み ' + mDone + '件' : '未出力 ' + (mNew + mRev) + '件')
+      + (mRev > 0 ? '・<strong>改訂 ' + mRev + '件</strong>' : '')
+      + (mDone > 0 && mNew > 0 ? '・未出力 ' + mNew + '件' : '');
   el.innerHTML =
     '<div class="sheet-back"><div class="sheet">'
     + '<div class="sheet-head"><span class="title">CSV出力</span>'
     + '<button class="close" data-act="close-csv">閉じる</button></div>'
-    + '<div class="btn-row">'
-    + '<button class="copy" data-act="copy-csv">全文をコピー</button>'
-    + '<button class="dl" data-act="dl-csv">ファイル保存</button>'
+    + (months.length > 0 ? monthNavHtml(months, cur, "csv-month") : '')
+    + '<div class="csv-status">' + statusLine + '</div>'
+    + '<div class="csv-scope">'
+    + '<button class="' + onCls("month") + '" data-act="csv-scope" data-scope="month">この月を出力(' + monthList.length + '件)</button>'
+    + '<div class="two">'
+    // 範囲をボタン名に明記する(2026-07-22改修16-2・検証12 問題2)。
+    // 月ページの中にあるため「この月の未出力だけ」と読まれ、別の月まで出力済みになっていた。
+    // 375pxで不格好に折り返さないよう、「全期間」を2行目に固定して改行位置をそろえる(改修17-2・最終確認 問題14)
+    + '<button class="' + onCls("need") + '" data-act="csv-scope" data-scope="need">未出力・改訂だけ<span class="sub">全期間 ' + needCnt + '件</span></button>'
+    + '<button class="' + onCls("all") + '" data-act="csv-scope" data-scope="all">ぜんぶ<span class="sub">全期間 ' + csvTargets().length + '件</span></button>'
     + '</div>'
+    + (scope === "one" ? '<div class="csv-one">この1件だけを出力します。</div>' : '')
+    + '</div>'
+    // いま出力しようとしている中身を、押す前に月ごとの件数で見せる(2026-07-22改修16-2)
+    + '<div class="csv-target">' + csvTargetLineHtml() + '</div>'
+    + (noRow
+      ? '<div class="csv-none">出力する行がありません。</div>'
+      : '<div class="btn-row">'
+        + '<button class="copy" data-act="copy-csv">全文をコピー(' + ui.csvIds.length + '件)</button>'
+        + '<button class="dl" data-act="dl-csv">ファイル保存</button>'
+        + '</div>')
+    // ファイル保存のあとの確認(2026-07-22改修16-1)。押されるまで出力済みにしない
+    + (ui.csvSaveAsk
+      ? '<div class="neg-confirm"><strong>保存できましたか?</strong>'
+        + '保存できていれば「出力済みにする」を押してください。'
+        + '<div class="row"><button class="go" data-act="csv-saved-go">出力済みにする(' + (ui.csvSaveAsk.ids || []).length + '件)</button>'
+        + '<button class="stop" data-act="csv-saved-stop">まだ</button></div>'
+        + '</div>'
+      : '')
     + '<div class="hint">「全文をコピー」したら、<strong>Googleドライブや自分宛メールなど端末の外</strong>に貼り付けて控えにしてください(同じスマホのメモ帳だけだと、端末の紛失・故障で本体と控えが一緒に消えます)。学習・回収状態まで丸ごと戻せる控えは、設定ページの「JSONをコピー」です。ファイル保存は .txt 形式になります(中身はCSVそのもの。Excelでそのまま開けます)。<br>最終バックアップ: ' + esc(state.lastBackup || "未実施") + '</div>'
     + (ui.copyMsg ? '<div class="notice notice-info">' + esc(ui.copyMsg) + '</div>' : '')
     + '<textarea readonly style="height:38vh" data-focus="select">' + esc(ui.csvText) + '</textarea>'
@@ -3479,6 +4209,71 @@ function renderBillsPage(el) {
   el.innerHTML = h;
 }
 
+// 「名前の統合」欄のHTML(取引先ページ。2026-07-21改修14-4)。
+// 取引先名と店名の2つのリストをタブで切り替え、似た名前の提示とプルダウンでの手動指定を両方置く
+function mergeSectionHtml() {
+  var kind = ui.mergeKind === "store" ? "store" : "client";
+  var data = mergeData(kind);   // 名前の顔ぶれが変わったときだけ計算し直す(改修14b・検証11 問題3)
+  var names = data.names;
+  var opts = function (sel) {
+    return '<option value=""' + (!sel ? " selected" : "") + '>(選んでください)</option>'
+      + names.map(function (n) {
+        return '<option value="' + esc(n.name) + '"' + (n.name === sel ? " selected" : "") + '>' + esc(n.name) + '</option>';
+      }).join("");
+  };
+  var hits = data.hits;
+  var hitsHtml = hits.length === 0
+    ? '<div class="bill-note" style="margin-bottom:8px;">似ている名前は見つかりませんでした。</div>'
+    : '<div class="lb" style="font-size:14px;font-weight:800;color:var(--sub);">もしかしてこれですか?</div>'
+      + hits.map(function (h) {
+        return '<div class="merge-hit">'
+          + '<div class="pair">' + esc(h.from) + ' ／ ' + esc(h.to) + '</div>'
+          + '<div class="why">' + esc(h.why) + '</div>'
+          + '<button data-act="merge-pick" data-from="' + esc(h.from) + '" data-to="' + esc(h.to) + '">「' + esc(h.to) + '」にまとめる</button>'
+          + '<button data-act="merge-pick" data-from="' + esc(h.to) + '" data-to="' + esc(h.from) + '">「' + esc(h.from) + '」にまとめる</button>'
+          + '</div>';
+      }).join("");
+  var m = ui.mergeConfirm;
+  var confirmHtml = '';
+  if (m) {
+    // 件数はここで数え直す(パネルを開いたまま記帳が増えても、表示が古くならない・検証11 問題4)
+    var txt = mergeCountText(mergeCounts(m.kind, m.from, m.to));
+    var nameA = '「<strong>' + esc(m.from) + '</strong>」', nameB = '「<strong>' + esc(m.to) + '</strong>」';
+    confirmHtml = '<div class="neg-confirm">'
+      + (txt
+        ? '<strong>' + esc(txt) + '</strong>が' + nameA + '→' + nameB + 'に変わります。'
+        : nameA + 'を' + nameB + 'にまとめます(いま変わるものはありません)。')
+      + '<strong>取り消せません。</strong>'
+      + '経費の金額は変わりません(未回収残・預かり残高は組み替わることがあります)。'
+      + '<div class="row"><button class="go" data-act="merge-go">まとめる</button>'
+      + '<button class="stop" data-act="merge-stop">やめる</button></div>'
+      + '</div>';
+  }
+  return '<section>'
+    + '<button class="sec-head" data-act="sec-toggle" data-key="merge" aria-expanded="' + (secIsOpen("merge", true) ? "true" : "false") + '">'
+    + '<span>名前の統合</span><span class="mark">' + (secIsOpen("merge", true) ? "とじる ▴" : "ひらく ▾") + '</span></button>'
+    + (secIsOpen("merge", true)
+      ? '<div class="sec-body">'
+        + '<div class="bill-note" style="margin-bottom:8px;">同じ相手・同じ店が別の名前で入っているとき、ひとつにまとめます(取り消せません)。</div>'
+        + '<div class="merge-tabs">'
+        + '<button class="' + (kind === "client" ? "on" : "") + '" data-act="merge-kind" data-kind="client">取引先名</button>'
+        + '<button class="' + (kind === "store" ? "on" : "") + '" data-act="merge-kind" data-kind="store">店名</button>'
+        + '</div>'
+        + hitsHtml
+        + '<div class="merge-pick">'
+        + '<div class="lb">まとめたい名前(この名前が消えます)</div>'
+        + '<select data-change="merge-from">' + opts(ui.mergeFrom) + '</select>'
+        + '<div class="lb">まとめ先(正式名)</div>'
+        + '<select data-change="merge-to">' + opts(ui.mergeTo) + '</select>'
+        + '<button class="merge-go" data-act="merge-open">この2つをまとめる</button>'
+        + '</div>'
+        + confirmHtml
+        + (ui.mergeMsg ? '<div class="notice notice-info" style="margin-top:8px;">' + esc(ui.mergeMsg) + '</div>' : '')
+        + '</div>'
+      : '')
+    + '</section>';
+}
+
 function renderPage() {
   var el = document.getElementById("pageLayer");
   if (!ui.page) { el.innerHTML = ""; return; }
@@ -3496,58 +4291,53 @@ function renderPage() {
       + '<div class="page-note">ここにある取引先が、記帳時のプルダウン候補になります。一度記帳で使った取引先は自動でここに追加されます。削除しても過去の記帳は変わりません。</div>'
       + '<div class="client-add"><input type="text" id="newClientName" placeholder="取引先名を追加">'
       + '<button data-act="add-client">追加</button></div>'
+      // 名前の表記ゆれの統合(2026-07-21改修14-4 ユーザー指示)
+      + mergeSectionHtml()
       + listHtml
       + '</div></div>';
     return;
   }
-  // 設定・使い方ページ
+  // 設定・使い方ページ(2026-07-21改修14-3 ユーザー指示: 全セクションを折りたたみ式にし、
+  // 既定は「現在の状態」だけ開いた状態。見出しだけが並ぶ形にする)
   el.innerHTML =
     '<div class="page"><div class="page-inner">'
     + '<div class="page-head"><h2>設定・使い方</h2><button class="close-btn" data-act="close-page">閉じる</button></div>'
+    // お願い文はメイン画面に移しました(2026-07-21改修14-1)。ここは1行だけ案内する
+    + '<div class="page-note">チャットへのお願い文はメイン画面にあります。</div>'
 
-    + '<section><h3>現在の状態</h3>'
-    + '記帳 ' + state.entries.length + '件 / 学習ルール ' + state.rules.length + '件<br>'
-    + '最終バックアップ: ' + esc(state.lastBackup || "未実施") + '<br>'
-    + '<button class="sub-act" data-act="self-test">保存テストを実行</button>'
-    + (ui.selfTestMsg ? '<div class="notice notice-info" style="margin-top:8px;">' + esc(ui.selfTestMsg) + '</div>' : '')
-    + '</section>'
+    + secHtml("state", "現在の状態",
+      '記帳 ' + state.entries.length + '件 / 学習ルール ' + state.rules.length + '件<br>'
+      + '最終バックアップ: ' + esc(state.lastBackup || "未実施") + '<br>'
+      + '<button class="sub-act" data-act="self-test">保存テストを実行</button>'
+      + (ui.selfTestMsg ? '<div class="notice notice-info" style="margin-top:8px;">' + esc(ui.selfTestMsg) + '</div>' : ''), true)
 
-    + '<section><h3>記帳の流れ</h3>'
-    + '① レシートやSuica・クレカ履歴のスクショをClaudeのチャットに送る(下の「お願い文」も一緒に) → ② 返ってきた行をコピー → ③ このアプリの「読み取り結果を貼り付けて取り込み」に貼る → ④ 内容を確認して朱色の承認印。急ぎのときは「レシート手入力」でも記帳できます。立替金の回収は「💴 回収を記録」から。'
-    + '</section>'
+    + secHtml("flow", "記帳の流れ",
+      '① レシートやSuica・クレカ履歴のスクショをClaudeのチャットに送る(メイン画面の「お願い文」も一緒に) → ② 返ってきた行をコピー → ③ このアプリの「読み取り結果を貼り付けて取り込み」に貼る → ④ 内容を確認して朱色の承認印。急ぎのときは「レシート手入力」でも記帳できます。立替金の回収は「💴 回収を記録」から。')
 
-    + '<section><h3>チャットへのお願い文(コピーして使う)</h3>'
-    + '<div class="copy-block mono" id="askBlock">' + esc(ASK_TEXT).replace(/\n/g, "<br>") + '</div>'
-    + '<button class="sub-act" data-act="copy-ask">お願い文をコピー</button>'
-    + '</section>'
-
-    + '<section><h3>貼り付けの形式</h3>'
-    + '1行=1件で、カンマ区切りのこの並びです:<br>'
+    + secHtml("paste", "貼り付けの形式",
+      '1行=1件で、カンマ区切りのこの並びです:<br>'
     + '<span class="mono">日付,店名,金額,勘定科目,支払方法,取引先,メモ</span><br>'
     + '取引先は空でもOK(古い6項目形式もそのまま取り込めます)。割り勘・立替・会社経費・人数・幽霊があるときは、末尾に <span class="mono">,請求分,請求先,人数,幽霊</span> の4列(8〜11列目・任意)を足せます(使わない列はカンマだけ置いて位置を揃えます。例: 人数だけなら <span class="mono">,,3</span>)。<br>'
     + '<strong>11列目(幽霊)に <span class="mono">1</span> を入れた行は、幽霊(確定申告用CSVに出さない行)として取り込まれます。</strong>PayPay等の「送金を受け取った」スクショ=立替金の回収は、<strong>金額をマイナス+11列目=1</strong> で記録します(例: <span class="mono">2026-07-21,山田太郎さんから回収,-3452,会議費,QRコード決済,山田太郎,立替回収,,,,1</span>)。<br>'
-    + '請求先が複数いるときは <span class="mono">A社/B社</span> のように半角「/」で区切ります。請求分の合計が請求先の人数で均等に分けられ(切り捨て)、端数は先頭の請求先に足されます。承認待ちが2件以上あると「まとめて承認」ボタンが使えます。'
-    + '</section>'
+    + '請求先が複数いるときは <span class="mono">A社/B社</span> のように半角「/」で区切ります。請求分の合計が請求先の人数で均等に分けられ(切り捨て)、端数は先頭の請求先に足されます。承認待ちが2件以上あると「まとめて承認」ボタンが使えます。')
 
-    + '<section><h3>バックアップ(週1・月曜が控えの日)</h3>'
-    + '<strong>週1回、月曜を「控えの日」</strong>にして、控えを取りましょう。おすすめは、すぐ下の<strong>「JSONをコピー」→ Googleドライブや自分宛メールなど端末の外へ貼り付け</strong>です(記帳・学習・取引先まで丸ごと戻せます)。CSVでもJSONでも、コピー・ファイル保存をすると実施日が記録され、7日以上空くと画面上部に黄色いお知らせが出ます(60日を超えると赤になります)。<br>'
+    + secHtml("backup", "バックアップ(週1・月曜が控えの日)",
+      '<strong>週1回、月曜を「控えの日」</strong>にして、控えを取りましょう。おすすめは、すぐ下の<strong>「JSONをコピー」→ Googleドライブや自分宛メールなど端末の外へ貼り付け</strong>です(記帳・学習・取引先まで丸ごと戻せます)。CSVでもJSONでも、コピー・ファイル保存をすると実施日が記録され、7日以上空くと画面上部に黄色いお知らせが出ます(60日を超えると赤になります)。<br>'
     + '<strong>控えは必ず「端末の外」へ。</strong>同じスマホのメモ帳だけだと、端末の紛失・故障・初期化で本体と控えが一緒に消えます。<br>'
-    + 'iPhone(Safari)で使う場合は、共有メニューから<strong>「ホーム画面に追加」</strong>して、そのアイコンから開くのがおすすめです。ホーム画面に追加したサイトは、Safariの「7日間使わないとサイトのデータが自動削除される」仕組みの対象外とされ、データが消えにくくなります。'
-    + '</section>'
+    + 'iPhone(Safari)で使う場合は、共有メニューから<strong>「ホーム画面に追加」</strong>して、そのアイコンから開くのがおすすめです。ホーム画面に追加したサイトは、Safariの「7日間使わないとサイトのデータが自動削除される」仕組みの対象外とされ、データが消えにくくなります。')
 
-    + '<section><h3>JSON控え(丸ごとバックアップ・復元)</h3>'
-    + '機種変更やブラウザの履歴削除に備えて、全データ(記帳・学習・取引先など)を1つのテキストとして控えられます。コピー・ファイル保存をすると、バックアップの実施日も記録されます。復元すると、今のデータはこの控えの内容に置き換わります(直前のデータは1世代前バックアップに退避されます)。<br>'
+    + secHtml("json", "JSON控え(丸ごとバックアップ・復元)",
+      '機種変更やブラウザの履歴削除に備えて、全データ(記帳・学習・取引先など)を1つのテキストとして控えられます。コピー・ファイル保存をすると、バックアップの実施日も記録されます。復元すると、今のデータはこの控えの内容に置き換わります(直前のデータは1世代前バックアップに退避されます)。<br>'
     + '<button class="sub-act" data-act="copy-json">JSONをコピー</button>'
     + '<button class="sub-act" data-act="dl-json">JSONをファイル保存</button>'
     + '<textarea id="jsonImportText" style="height:70px;margin-top:8px;" placeholder="控えのJSONをここに貼り付けて復元"></textarea>'
     + '<button class="sub-act" data-act="import-json">貼り付けた内容で復元</button>'
     + (ui.jsonMsg ? '<div class="notice notice-info" style="margin-top:8px;">' + esc(ui.jsonMsg) + '</div>' : '')
     // 公開URLで使うときの注意(2026-07-21改修13-10 ユーザー指示で引っ越しの記述は削除。安全の注意だけ1行残す)
-    + '<div style="margin-top:8px;">公開URLで使うときは、<strong>この台帳だけを置くURL</strong>にしてください(同じ ○○.github.io の下に別のページを置くと、そのページから台帳のデータを読めてしまいます)。</div>'
-    + '</section>'
+    + '<div style="margin-top:8px;">公開URLで使うときは、<strong>この台帳だけを置くURL</strong>にしてください(同じ ○○.github.io の下に別のページを置くと、そのページから台帳のデータを読めてしまいます)。</div>')
 
-    + '<section><h3>削除ログ(原本写真の整理用)</h3>'
-    + '記帳を削除すると、消した内容(削除日・日付・店名・金額・科目・メモ)がここに記録されます。現在 <strong>' + state.deletedLog.length + '件</strong>。<br>'
+    + secHtml("dellog", "削除ログ(原本写真の整理用)",
+      '記帳を削除すると、消した内容(削除日・日付・店名・金額・科目・メモ)がここに記録されます。現在 <strong>' + state.deletedLog.length + '件</strong>。<br>'
     + '「削除ログをコピー」でコピーした内容をチャット(Claude Code)に貼り付けると、対応するレシート原本写真を「削除済み」フォルダへ移動してもらえます。移動が済んだら「ログをクリア」で空にしてください。'
     + (state.deletedLog.length > 0 ? '<div class="copy-block mono">' + esc(buildDeletedLogText()).replace(/\n/g, "<br>") + '</div>' : '')
     + '<button class="sub-act" data-act="copy-dellog">削除ログをコピー</button>'
@@ -3555,41 +4345,36 @@ function renderPage() {
     + (ui.logClearConfirm ? '<div class="notice notice-error" style="margin-top:8px;"><div class="n-head"><span class="warn-ic sm">!</span><span>削除ログ ' + state.deletedLog.length + '件を空にします。原本写真の移動が済んでいるか確認してから消してください。</span></div>'
       + '<button class="sub-act" data-act="clear-dellog-go" style="color:var(--warn);border-color:var(--warn);">空にする</button>'
       + '<button class="sub-act" data-act="clear-dellog-stop">やめる</button></div>' : '')
-    + (ui.logMsg ? '<div class="notice notice-info" style="margin-top:8px;">' + esc(ui.logMsg) + '</div>' : '')
-    + '</section>'
+    + (ui.logMsg ? '<div class="notice notice-info" style="margin-top:8px;">' + esc(ui.logMsg) + '</div>' : ''))
 
-    + '<section><h3>確定申告への使い方</h3>'
-    + '1年分の帳簿がたまったら、次の流れで確定申告に使えます。<br>'
+    + secHtml("tax", "確定申告への使い方",
+      '1年分の帳簿がたまったら、次の流れで確定申告に使えます。<br>'
     + '① 台帳の上の<strong>年タブ</strong>で、申告する年(例: 2026年)に絞り込みます(記帳が2年分以上あると年タブが表示されます)。<br>'
     + '② 絞り込んだ状態の<strong>科目別集計</strong>の金額を、申告書類の経費欄へ科目ごとに書き写します。白色申告なら「収支内訳書」、青色申告なら「青色申告決算書」の経費の内訳欄です(会議費など欄が無い科目は空欄の科目名を書いて使います)。科目別集計は<strong>自分負担(総額−請求分)ベース</strong>なので、そのまま転記できます。<br>'
     + '③ CSVは<strong>確定申告用</strong>です。7列(<span class="mono">日付,店名,金額,勘定科目,支払方法,取引先,メモ</span>)で、<strong>「金額」=自分負担(総額−請求分の合計)</strong>なので、そのまま申告に使えます。<strong>立替分・回収の情報はCSVには出ません。</strong>自分負担0円の行(全額を会社などに請求した立替=自分の経費ではないもの)と幽霊行もCSVには出ません。立替・回収・幽霊まで含めた<strong>全データの控えはJSON控え</strong>(上のバックアップ)の役目です。<br>'
     + '④ 下の「CSVをダウンロード」→「全文をコピー」で、その年の明細の控えを保存します。レシート原本とこの帳簿(CSV控え)は7年保存します。<br>'
     + '⑤ 会計ソフト(freee・マネーフォワード・弥生など)を使う場合は、CSVをソフトに取り込めば、転記なしで集計・申告書類の作成までできます。<br>'
-    + 'なお、このCSVを「読み取り結果を貼り付けて取り込み」に貼り直すと、<strong>請求情報なしの承認待ち</strong>として取り込まれます(それで正常です。全データを丸ごと戻す往復はJSON控えを使ってください)。'
-    + '</section>'
+    + 'なお、このCSVを「読み取り結果を貼り付けて取り込み」に貼り直すと、<strong>請求情報なしの承認待ち</strong>として取り込まれます(それで正常です。全データを丸ごと戻す往復はJSON控えを使ってください)。')
 
-    + '<section><h3>7年保存のルール</h3>'
-    + '帳簿・書類は税法上7年保存が原則です。このアプリの保存(ブラウザ内)は、履歴削除・機種変更・長期間使わない等で消えることがあるため、<strong>正本は「端末の外に置いた週1のJSON控え」</strong>と考えてください。紙のレシート原本にも保存義務があるので、捨てずに年別の封筒などで保管を。'
-    + '</section>'
+    + secHtml("keep7", "7年保存のルール",
+      '帳簿・書類は税法上7年保存が原則です。このアプリの保存(ブラウザ内)は、履歴削除・機種変更・長期間使わない等で消えることがあるため、<strong>正本は「端末の外に置いた週1のJSON控え」</strong>と考えてください。紙のレシート原本にも保存義務があるので、捨てずに年別の封筒などで保管を。')
 
-    + '<section><h3>科目の学習</h3>'
-    + 'このアプリは「店名→勘定科目」の対応を自動で覚えます。学習されるのは次の3つの瞬間です。<br>'
+    + secHtml("learn", "科目の学習",
+      'このアプリは「店名→勘定科目」の対応を自動で覚えます。学習されるのは次の3つの瞬間です。<br>'
     + '① 承認待ちカードで<strong>承認印を押した瞬間</strong>(そのときの店名と科目の組み合わせを覚えます)<br>'
     + '② 記帳済みの行をタップして<strong>科目を変更した瞬間</strong>(新しい科目で覚え直します)<br>'
     + '③ 記帳済みの行の編集フォームで<strong>「保存する」を押した瞬間</strong>(そのときの店名と科目で覚え直します)<br>'
     + '覚えた店は、次回の取り込みから自動でその科目が予想されます(「セブンイレブン梅田店」のような<strong>部分一致</strong>でも同じ店とみなします)。カードに「過去の実績から予想」と表示されるのがこの学習の働きです。<br>'
-    + 'なお、貼り付け取り込みの行に科目が書かれている場合(チャットで仕分け済みの行など)は、<strong>学習よりも貼り付けの科目が優先</strong>されます。学習が使われるのは、科目が空欄か15科目に無いときだけです。'
-    + '</section>'
+    + 'なお、貼り付け取り込みの行に科目が書かれている場合(チャットで仕分け済みの行など)は、<strong>学習よりも貼り付けの科目が優先</strong>されます。学習が使われるのは、科目が空欄か15科目に無いときだけです。')
 
-    + '<section><h3>会議費と接待交際費の分け方</h3>'
-    + 'このアプリでは <strong>1人あたり5,000円以下の打合せ飲食=会議費、それを超える会食=接待交際費</strong> という<strong>マイルール(自分基準)</strong>で仕分けます。<br>'
+    + secHtml("meal", "会議費と接待交際費の分け方",
+      'このアプリでは <strong>1人あたり5,000円以下の打合せ飲食=会議費、それを超える会食=接待交際費</strong> という<strong>マイルール(自分基準)</strong>で仕分けます。<br>'
     + '個人事業主には法律で決まった金額の線引きは無く、<strong>どちらの科目でも事業に必要な支出なら経費にできます</strong>(税額も変わりません)。基準を毎回そろえることが帳簿の信頼につながります。<br>'
     + '割り勘のときも、判定は<strong>総額(レシートの合計)÷人数</strong>で見ます(自分負担額ではなく総額基準です)。<br>'
-    + 'それよりも大事なのは、会食のときに<strong>人数・相手・関係(例: 4名・○○社△△様・打合せ)をメモに残す</strong>ことです。あとから「事業に必要な会食だった」と説明する材料になります。'
-    + '</section>'
+    + 'それよりも大事なのは、会食のときに<strong>人数・相手・関係(例: 4名・○○社△△様・打合せ)をメモに残す</strong>ことです。あとから「事業に必要な会食だった」と説明する材料になります。')
 
-    + '<section><h3>割り勘・立替・会社経費の使い方</h3>'
-    + '会社宛・会社用途の支払いも、取引先や知人との割り勘・立替(たてかえ=他人の分を一時的に自分が払うこと)も、<strong>ぜんぶこのアプリに入れてOK</strong>です。承認待ちカードや編集フォームの「<span class="mono">請</span> <strong>割り勘・立替</strong>」欄(紫の枠)で<strong>請求先を複数タップして選ぶ</strong>と、自分の経費には<strong>自分負担(総額−請求分の合計)だけ</strong>が計上されます。<br>'
+    + secHtml("bill", "割り勘・立替・会社経費の使い方",
+      '会社宛・会社用途の支払いも、取引先や知人との割り勘・立替(たてかえ=他人の分を一時的に自分が払うこと)も、<strong>ぜんぶこのアプリに入れてOK</strong>です。承認待ちカードや編集フォームの「<span class="mono">請</span> <strong>割り勘・立替</strong>」欄(紫の枠)で<strong>請求先を複数タップして選ぶ</strong>と、自分の経費には<strong>自分負担(総額−請求分の合計)だけ</strong>が計上されます。<br>'
     + '・<strong>割り勘</strong> … ①人数を選ぶ → ②請求する相手をタップ(複数選べます。最大 人数−1名)。<strong>1人あたり=総額÷人数の切り捨て</strong>が自動で入り、端数は自分負担側に寄ります(例: 総額13,000円・3名・請求先2名 → 各4,333円・自分負担4,334円)。金額は1件ずつ手で直せます(<strong>合計が総額を超えると承認できません</strong>)。<br>'
     + '・<strong>会社の経費を立て替えた</strong> … 請求先チップで会社名を1つ選んで「全額(会社に請求など)」ボタン。自分負担0円になり、<strong>個人の経費集計・確定申告からは自動で除外</strong>されます。<br>'
     + '・<strong>回収を記録する</strong> … 画面上の<strong>「💴 回収を記録」</strong>ボタンを押すと、回収用のカードが開きます(メモ「立替回収」と<strong>幽霊(CSV除外)がON</strong>・金額は<strong>マイナス側</strong>の状態)。あとは<strong>受け取った額の数字と取引先</strong>を入れて承認するだけです。回収は経費でも収入でもないため、既定では確定申告用CSVに出しません(カードの「👻」ボタンで<strong>後からCSVに出す/出さないを切り替え</strong>られます。切り替えても未回収からの差し引きは効いたままです)。<strong>金額のマイナスは、金額欄の右にある「±」ボタン</strong>で付け外しします(スマホのテンキーに「−」が無いためです。承認待ちカードでも編集フォームでも使えます)。PayPay等の受取スクショをチャットで読み取ってもらった行(11列目=1)も同じ形で取り込まれます。<br>'
@@ -3601,24 +4386,21 @@ function renderPage() {
     + '・立替の残高は台帳の<strong>「請 立替の月別累計」</strong>で確認できます(月ごとに 立替累計・回収済み・未回収残 の3つと、全体合計。合計には<strong>預かり残高</strong>も並びます)。取引先を選んでいないときは全請求先の合算です。<br>'
     + '・回収の管理は右上の<strong>「請求」ボタン</strong>から。明細ごと・請求先ごとに加えて、月ページの<strong>「この月をまとめて回収済みにする」</strong>も使えます(取消も可)。回収済みにしてもしなくても、<strong>経費の集計・確定申告には一切影響しません</strong>(割り勘で相手からもらう分は最初から経費に入っていないためです)。<br>'
     + '・<strong>純粋な返品・値引きだけ</strong>が、従来どおりのマイナス金額(例: -500)での記帳です(こちらは経費の減額として集計から差し引かれます)。割り勘・立替にはマイナス記帳を使わないでください。<br>'
-    + '・請求先の名前に半角「/」は使えません(CSVで複数請求先を区切る記号のため。入力すると自動で全角「/」になります)。'
-    + '</section>'
+    + '・請求先の名前に半角「/」は使えません(CSVで複数請求先を区切る記号のため。入力すると自動で全角「/」になります)。')
 
-    + '<section><h3>幽霊(CSV除外)の使い方</h3>'
-    + '申告用のCSVには載せたくない経費を、アプリの中だけで管理する機能です。記帳済みの行をタップ →「変更」→「<strong>👻 幽霊にする</strong>」で切り替えられます(戻すのも同じ場所です)。<br>'
+    + secHtml("ghost", "幽霊(CSV除外)の使い方",
+      '申告用のCSVには載せたくない経費を、アプリの中だけで管理する機能です。記帳済みの行をタップ →「変更」→「<strong>👻 幽霊にする</strong>」で切り替えられます(戻すのも同じ場所です)。<br>'
     + '幽霊にした行は、台帳では<strong>半透明+👻マーク+「CSV除外」の文字</strong>で表示され、アプリの表示・集計には残りますが(「うち幽霊 ¥X」の注記つき)、<strong>CSV書き出しには含まれません</strong>。JSON控え(丸ごとバックアップ)には含まれるので、データは失われません。<br>'
-    + '申告に載せる金額が<strong>減る方向</strong>の除外なので、税務上の問題はありません。'
-    + '</section>'
+    + '申告に載せる金額が<strong>減る方向</strong>の除外なので、税務上の問題はありません。')
 
-    + '<section><h3>取引先ごとの表示</h3>'
-    + '記帳の「取引先・案件」はプルダウンから選べます。一度使った取引先は自動で候補になり、右上の「取引先」で候補の追加・削除ができます。取引先を入れた記帳があると、台帳の上に切り替えボタンが現れ、取引先別の経費だけを表示・集計できます。<br>'
-    + '<strong>操作方法(2026-07-21変更): 取引先ボタンは「タップ=その1件だけを表示」「2秒の長押し=複数選択(押すたびに追加・解除)」です。</strong>長押し中はボタンに色が満ちていき、指を離すか2秒たつ前に動かすと通常のタップになります。選択の解除は「すべて」ボタンです。'
-    + '</section>'
+    + secHtml("client", "取引先ごとの表示",
+      '記帳の「取引先・案件」はプルダウンから選べます。一度使った取引先は自動で候補になり、右上の「取引先」で候補の追加・削除ができます。取引先を入れた記帳があると、台帳の上に切り替えボタンが現れ、取引先別の経費だけを表示・集計できます。<br>'
+    + '<strong>操作方法(2026-07-21変更): 取引先ボタンは「タップ=その1件だけを表示」「2秒の長押し=複数選択(押すたびに追加・解除)」です。</strong>長押し中はボタンに色が満ちていき、指を離すか2秒たつ前に動かすと通常のタップになります。選択の解除は「すべて」ボタンです。<br>'
+      + '読み取りで名前がばらついたとき(カタカナ・ローマ字・漢字・○○店ありなし)は、<strong>「取引先」ページの「名前の統合」</strong>でひとつにまとめられます。')
 
-    + '<section><h3>金額のきまり</h3>'
-    + '金額は税込合計を整数(円)で記録します。小数は入力できません。アプリの中で税抜計算や割り算はしないので、集計は1円もずれません。<br>'
-    + '返金・値引きは「-500」のように<strong>マイナスの金額</strong>で記帳できます。承認時に確認が出て、台帳には <strong>△500</strong> のように朱色で表示され、月合計・科目別集計から差し引かれます(CSVには -500 という数値のまま出力されます)。'
-    + '</section>'
+    + secHtml("money", "金額のきまり",
+      '金額は税込合計を整数(円)で記録します。小数は入力できません。アプリの中で税抜計算や割り算はしないので、集計は1円もずれません。<br>'
+      + '返金・値引きは「-500」のように<strong>マイナスの金額</strong>で記帳できます。承認時に確認が出て、台帳には <strong>△500</strong> のように朱色で表示され、月合計・科目別集計から差し引かれます(CSVには -500 という数値のまま出力されます)。')
 
     + '</div></div>';
 }
@@ -3695,6 +4477,7 @@ function render() {
   renderSummary();
   renderNotices();
   renderImportPanel();
+  renderAskBox();
   renderBulk();
   renderPendings();
   renderFilters();
@@ -3778,6 +4561,14 @@ var ACTIONS = {
   "close-csv": function () { closeCsv(); },
   "copy-csv": function () { copyCsv(); },
   "dl-csv": function () { downloadCsv(); },
+  // CSVの月別出力と出力済み管理(2026-07-21改修15)
+  "csv-month": function (el) { setCsvScope("month", el.dataset.name); },
+  "csv-scope": function (el) { setCsvScope(el.dataset.scope); },
+  // ファイル保存のあとの確認(2026-07-22改修16-1)
+  "csv-saved-go": function () { csvSaveAskGo(); },
+  "csv-saved-stop": function () { csvSaveAskStop(); },
+  "export-one": function (el) { exportOne(el.dataset.id); },
+  "export-toggle": function (el) { toggleExported(el.dataset.id); },
   "close-page": function () { closePage(); },
   "self-test": function () { runSelfTest(); },
   "copy-ask": function () { copyAskText(); },
@@ -3790,6 +4581,28 @@ var ACTIONS = {
   "clear-dellog-stop": function () { ui.logClearConfirm = false; renderPage(); },
   "add-client": function () { addClientFromPage(); },
   "remove-client": function (el) { removeClient(el.dataset.name); },
+  // 折りたたみ見出し(2026-07-21改修14-3)
+  "sec-toggle": function (el) {
+    var k = el.dataset.key;
+    var defOpen = (k === "state" || k === "merge"); // 既定で開いているのはこの2つだけ
+    ui.secOpen[k] = !secIsOpen(k, defOpen);
+    renderPage();
+  },
+  // メイン画面のお願い文の開閉(2026-07-21改修14-1)
+  "ask-toggle": function () { ui.askOpen = !ui.askOpen; ui.askMsg = ""; renderAskBox(); },
+  // 名前の統合(2026-07-21改修14-4)
+  "merge-kind": function (el) {
+    ui.mergeKind = el.dataset.kind === "store" ? "store" : "client";
+    ui.mergeFrom = "";
+    ui.mergeTo = "";
+    ui.mergeConfirm = null;
+    ui.mergeMsg = "";
+    renderPage();
+  },
+  "merge-pick": function (el) { mergeOpenConfirm(ui.mergeKind, el.dataset.from, el.dataset.to); },
+  "merge-open": function () { mergeOpenConfirm(ui.mergeKind, ui.mergeFrom, ui.mergeTo); },
+  "merge-go": function () { mergeGo(); },
+  "merge-stop": function () { ui.mergeConfirm = null; ui.mergeMsg = ""; renderPage(); },
   "open-bills": function () { openPage("bills"); },
   "bill-toggle": function (el) { ui.billOpen[el.dataset.key] = el.dataset.open !== "1"; render(); },
   // 金額の±(符号反転。2026-07-21改修12-2)
@@ -3909,11 +4722,32 @@ document.addEventListener("input", function (ev) {
     if (obj && box) box.innerHTML = personsCalcHtml(kind, el.dataset.id || "", obj, "");
     var ob2 = document.getElementById(billOwnId(kind, el.dataset.id || ""));
     if (obj && ob2 && el.dataset.field === "amount") ob2.innerHTML = billOwnHtml(obj);
+    // 金額の入力でマイナス⇄プラスが変わったら、割り勘・立替欄のグレーアウトもその場で合わせる
+    // (2026-07-21改修14-5)。カーソルは金額欄にあるので、この箱を作り直しても入力は途切れない
+    var sec = document.getElementById(billSecId(kind, el.dataset.id || ""));
+    if (obj && sec && el.dataset.field === "amount") {
+      var a2 = parseAmount(obj.amount);
+      var wantOff = obj.collect === true || (!isNaN(a2) && a2 < 0);
+      var nowOff = !!sec.querySelector(".bill-toggle.off");
+      // 切り替わったときだけ作り直す(1文字打つたびに作り直すと、入力中の請求先名などが落ち着かないため)
+      if (wantOff !== nowOff) sec.innerHTML = billSectionHtml(kind, el.dataset.id || "", obj, "");
+    }
   }
 });
 document.addEventListener("change", function (ev) {
   var el = ev.target;
   if (!el || !el.dataset) return;
+  // 新しい取引先名を直接入力したときの確定(フォーカスが外れたとき)。
+  // 回収の行なら店名を「(取引先名)から回収」にそろえる(2026-07-21改修14-6)
+  if (el.dataset.input && (el.dataset.input === "pending" || el.dataset.input === "draft") && el.dataset.field === "client") {
+    var tc = billTargetOf(el.dataset.input, el.dataset.id || "");
+    if (tc && tc.collect === true && String(tc.client || "").trim()) {
+      syncCollectStore(tc);
+      markDirty();
+      render();
+    }
+    return;
+  }
   // 人数の直接入力の確定(フォーカスが外れたとき): 会食科目の自動セット(2026-07-21改修B)を反映して描き直す
   if (el.dataset.input && (el.dataset.input === "pending" || el.dataset.input === "draft") && el.dataset.field === "persons") {
     var t = billTargetOf(el.dataset.input, el.dataset.id || "");
@@ -3938,6 +4772,9 @@ document.addEventListener("change", function (ev) {
   }
   else if (kind === "draft-client") draftClientSel(el.value);
   else if (kind === "entry-cat") changeEntryCategory(el.dataset.id, el.value);
+  // 名前の統合のプルダウン(2026-07-21改修14-4)。選び直したら確認パネルは閉じる
+  else if (kind === "merge-from") { ui.mergeFrom = el.value; ui.mergeConfirm = null; ui.mergeMsg = ""; renderPage(); }
+  else if (kind === "merge-to") { ui.mergeTo = el.value; ui.mergeConfirm = null; ui.mergeMsg = ""; renderPage(); }
 });
 document.addEventListener("focusin", function (ev) {
   var el = ev.target;
