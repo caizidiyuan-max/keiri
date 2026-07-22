@@ -91,6 +91,15 @@
     display: block; width: 100%; margin-top: 8px; padding: 12px; min-height: 52px;
     background: var(--warn); color: #FFF; border: none; border-radius: 10px; font-size: 15px; font-weight: 800;
   }
+  /* Googleドライブ控えの案内バー(2026-07-22 第9段): ワンタップ保存。お知らせ欄の最上部に出す */
+  .gdrive-bar { padding: 8px; }
+  .gdrive-bar .gdrive-go {
+    display: block; width: 100%; min-height: 52px; padding: 12px;
+    background: var(--blue); color: #FFF; border: none; border-radius: 10px;
+    font-size: 16px; font-weight: 800;
+  }
+  .gdrive-bar .gdrive-go:disabled { opacity: 0.6; cursor: default; }
+  .gdrive-bar .gdrive-err { margin-top: 6px; font-size: 14px; font-weight: 700; color: var(--warn); }
 
   /* 入力ボタン群 */
   .btn { display: block; width: 100%; border-radius: 12px; font-weight: 800; letter-spacing: 0.04em; margin-bottom: 10px; }
@@ -634,6 +643,7 @@ var state = {
   editDraft: null,
   lastBackup: "",
   lastSavedAt: "", // 最終保存日時 "YYYY-MM-DD HH:MM"(2026-07-21 ユーザー指示: 保存状態の常時表示用。persistNow成功時に更新)
+  lastDriveBackup: "", // 最後のドライブ控え日時 "YYYY-MM-DD HH:MM"(2026-07-22 第9段)。空=未実施。成功したときだけ更新
   deletedLog: []   // 削除ログ(2026-07-20追加): 記帳を削除した記録。原本写真の整理(削除済みフォルダへの移動)に使う
 };
 var ui = {
@@ -692,6 +702,9 @@ var ui = {
   mergeToNew: "",        // 新しいまとめ先の名前(mergeToAdding のとき有効)
   mergeConfirm: null,    // 確認中 {kind, from, to, entryCount, billCount, ruleCount}
   mergeMsg: "",
+  // Googleドライブ控え(2026-07-22 第9段)
+  gdriveMsg: "",         // 案内バー下の1行エラー(次のタップ・成功で消す)
+  gdriveSetMsg: "",      // 設定ページ「Googleドライブ控え」欄の1行メッセージ(保存・接続テスト・解除の結果)
   // 保存状態の常時表示(2026-07-21 ユーザー指示)
   dirty: false,          // 未保存の変更あり(markDirtyでON・保存成功でOFF)
   justSavedMsg: "",      // 手動保存ボタンの「保存しました HH:MM」表示(次の変更で消える)
@@ -1093,6 +1106,8 @@ function loadState() {
     state.lastBackup = typeof d.lastBackup === "string" ? d.lastBackup : "";
     // 最終保存時刻(2026-07-21追加)。旧データ(フィールドなし)は空文字で補完する
     state.lastSavedAt = typeof d.lastSavedAt === "string" ? d.lastSavedAt : "";
+    // 最後のドライブ控え日時(2026-07-22 第9段)。旧データ(フィールドなし)や文字列以外は ""=未実施 に補正
+    state.lastDriveBackup = typeof d.lastDriveBackup === "string" ? d.lastDriveBackup : "";
     // 削除ログ(2026-07-20追加)。旧データ(フィールドなし)は空配列で補完する
     state.deletedLog = sanitizeDeletedLog(d.deletedLog);
     // idを文字列にそろえる(旧データは数値idの可能性がある)
@@ -1979,6 +1994,38 @@ function buildCsvFrom(list) {
 }
 function buildCsv() { return buildCsvFrom(csvTargets()); }
 
+// ---------- 閲覧用の全記帳CSV(2026-07-22改良2: ドライブ控えに同梱・管理者のPC閲覧用) ----------
+// 申告用7列CSV(buildCsv)とは別物。全行(幽霊・回収行も含む)を12列で出し、
+// PCのドライブ画面・スプレッドシートでそのまま読める形にする。アプリ内の申告用CSV出力には一切影響しない。
+// ・金額=総額 / 自分負担=総額−Σ請求分(申告用CSVの「金額」と同じ数字)
+// ・請求分=請求の合計(なければ空欄)/ 請求先=「/」区切り(既存の取り込み形式と同じ区切り)
+// ・回収=回収行なら「回収行」・請求ありなら 回収済み/一部回収(済/請求)/未回収 / 幽霊=幽霊行なら「幽霊」
+function viewCsvRowOf(e) {
+  var bills = Array.isArray(e.bills) ? e.bills : [];
+  var billTotal = billSum(bills);
+  var billTos = bills.map(function (b) { return String(b.to || "").trim(); }).filter(Boolean).join("/");
+  var collectText = "";
+  if (e.collect === true) {
+    collectText = "回収行";
+  } else if (billTotal > 0) {
+    var got = 0;
+    bills.forEach(function (b) { got += billPaidAmt(b); });
+    collectText = got >= billTotal ? "回収済み" : (got > 0 ? "一部回収(" + got + "/" + billTotal + ")" : "未回収");
+  }
+  return [
+    e.date, e.store, e.amount, entryOwn(e), e.category, e.payment || "現金",
+    e.client || "", e.memo, billTotal > 0 ? billTotal : "", billTos, collectText,
+    e.ghost === true ? "幽霊" : ""
+  ];
+}
+function buildViewCsv() {
+  var header = "日付,店名,金額,自分負担,勘定科目,支払方法,取引先,メモ,請求分,請求先,回収,幽霊";
+  var rows = state.entries.slice()
+    .sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); })
+    .map(function (e) { return viewCsvRowOf(e).map(csvCell).join(","); });
+  return "﻿" + [header].concat(rows).join("\n"); // BOM付きUTF-8(申告用CSVと同じ)
+}
+
 // ---------- 出力済み/改訂の管理(2026-07-21改修15 ユーザー指示) ----------
 // 「出力済にした月も、あとから経費が見つかることがある」ため、
 // 記帳1件ごとに「出力したときの内容の指紋(sig)」を持たせ、あとで変わったら「改訂」として拾えるようにする。
@@ -2261,6 +2308,325 @@ function downloadJson() {
   }
   renderPage();
 }
+// ---------- Googleドライブ控え(半自動バックアップ・2026-07-22 第9段) ----------
+// 仕様: 計画.md §2「Googleドライブ控え(半自動バックアップ)」。
+// ・GISトークン方式・スコープは drive.file のみ(このアプリが作ったファイルにしか触れない最小権限)
+// ・GISスクリプトはドライブ操作(案内バーのタップ・接続テスト)のときだけ遅延読み込み。
+//   未接続(Client ID未設定)の間は外部への読み込み・通信を一切発生させない
+// ・アクセストークンはメモリのみ(localStorage・sessionStorage・state に入れない。画面を閉じれば消える)
+// ・自動アップロード・自動リトライはしない。送信はユーザーがタップしたときだけ
+// ・静かな再接続(2026-07-22改良1): 一度許可に成功したら真偽フラグ gdrive-consented だけを記録し、
+//   次回からはまず prompt:'' の無言取得を試す(成功すればポップアップなし)。失敗時だけ従来のポップアップ
+var GDRIVE_CID_KEY = "gdrive-client-id"; // state の外の独立キー。JSON控え・インポートの対象外。秘書アプリ(hisyo)と共用
+var GDRIVE_CONSENT_KEY = "gdrive-consented"; // 「一度許可に成功したか」の真偽のみ(トークン等の秘密情報ではない)。接続解除で削除
+var GDRIVE_FOLDER = "経理台帳控え";
+var GDRIVE_API = "https://www.googleapis.com/drive/v3/files";
+var GDRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3/files";
+var gdrive = {
+  token: null,      // アクセストークン(メモリのみ。どこにも保存しない)
+  tokenExp: 0,      // トークンの有効期限(ミリ秒時刻)。切れていたら次の操作時に取り直す
+  busy: false,      // 実行中(保存中・接続テスト中)。二重タップ=二重アップロード防止
+  gisLoading: null  // GISスクリプト読み込み中のPromise(読み込みは1回だけで以後再利用)
+};
+function gdriveClientId() {
+  try { return String(localStorage.getItem(GDRIVE_CID_KEY) || "").trim(); } catch (e) { return ""; }
+}
+// 静かな再接続(2026-07-22改良1)の判断用フラグ。読めない・書けない環境でも動作は変わらない(毎回ポップアップになるだけ)
+function gdriveConsented() {
+  try { return localStorage.getItem(GDRIVE_CONSENT_KEY) === "1"; } catch (e) { return false; }
+}
+function gdriveMarkConsented() {
+  try { localStorage.setItem(GDRIVE_CONSENT_KEY, "1"); } catch (e) { /* 何もしない */ }
+}
+// 失敗の種類を運ぶエラー(1行表示の文言選びに使う)
+function gdriveErr(kind) { var e = new Error(kind); e.gdriveKind = kind; return e; }
+// 失敗5種+非対応環境の1行エラー(計画.md §2 (7): いずれも1行+手動のJSON控えへ誘導)
+function gdriveFailText(err) {
+  var kind = err && err.gdriveKind ? err.gdriveKind : "api";
+  var m = {
+    env: "この開き方ではドライブ機能を使えません(公開URLで開いたときだけ使えます)。",
+    offline: "オフラインのため接続できませんでした。",
+    gis: "Googleの接続部品を読み込めませんでした(通信環境をご確認ください)。",
+    popup: "許可画面(ポップアップ)を開けませんでした。ブラウザのポップアップブロックをご確認ください。",
+    denied: "Googleの許可が得られませんでした(許可画面を閉じた・拒否)。",
+    api: "ドライブへの保存に失敗しました(通信またはGoogle側のエラー)。"
+  };
+  return (m[kind] || m.api) + "設定ページのJSON控え(コピー/ファイル保存)をお使いください。";
+}
+// GISスクリプトの遅延読み込み(1回だけ)。onerror+15秒タイムアウトで1行エラーに落とす
+function gdriveLoadGis() {
+  if (window.google && window.google.accounts && window.google.accounts.oauth2) return Promise.resolve();
+  if (gdrive.gisLoading) return gdrive.gisLoading;
+  gdrive.gisLoading = new Promise(function (resolve, reject) {
+    var s = document.createElement("script");
+    var timer = setTimeout(function () {
+      gdrive.gisLoading = null; // 失敗したら次のタップで読み込み直せるようにする
+      try { s.remove(); } catch (e) { /* 何もしない */ }
+      reject(gdriveErr("gis"));
+    }, 15000);
+    s.src = "https://accounts.google.com/gsi/client";
+    s.async = true;
+    s.onload = function () { clearTimeout(timer); resolve(); };
+    s.onerror = function () {
+      clearTimeout(timer);
+      gdrive.gisLoading = null;
+      try { s.remove(); } catch (e) { /* 何もしない */ }
+      reject(gdriveErr("gis"));
+    };
+    document.head.appendChild(s);
+  });
+  return gdrive.gisLoading;
+}
+// トークンを1回要求する(2026-07-22改良1で gdriveGetToken から分離)。
+// silent=true なら prompt:'' の無言取得(許可画面を出さない)。成功したら許可済みフラグを記録する
+function gdriveRequestToken(cid, silent) {
+  return new Promise(function (resolve, reject) {
+    var done = false; // callback と error_callback の二重発火を1回に丸める
+    function fin(fn, arg) { if (!done) { done = true; fn(arg); } }
+    try {
+      var client = window.google.accounts.oauth2.initTokenClient({
+        client_id: cid,
+        scope: "https://www.googleapis.com/auth/drive.file",
+        callback: function (resp) {
+          if (resp && resp.access_token) {
+            gdrive.token = resp.access_token;
+            var sec = Number(resp.expires_in);
+            gdrive.tokenExp = Date.now() + (Number.isFinite(sec) && sec > 0 ? sec : 3600) * 1000;
+            gdriveMarkConsented(); // 許可成功の印(真偽のみ)。次回から無言取得を先に試せる
+            fin(resolve, gdrive.token);
+          } else {
+            fin(reject, gdriveErr(resp && resp.error === "access_denied" ? "denied" : "api"));
+          }
+        },
+        error_callback: function (err) {
+          var t = String((err && (err.type || err.error)) || "");
+          fin(reject, gdriveErr(t === "popup_failed_to_open" ? "popup" : (t === "popup_closed" ? "denied" : "api")));
+        }
+      });
+      if (silent) client.requestAccessToken({ prompt: "" }); // 無言取得(ポップアップを出さずに既存の許可を使う)
+      else client.requestAccessToken();                      // 従来のポップアップ(初回・無言取得が失敗したとき)
+    } catch (e) {
+      fin(reject, gdriveErr("api"));
+    }
+  });
+}
+// トークン取得: 有効期限内(残り1分以上)ならメモリのものを再利用。切れていたら取り直す。
+// 静かな再接続(2026-07-22改良1): 一度許可済みなら、まず無言取得を試し、
+// 失敗したとき(セッション切れ等)だけ従来のポップアップにフォールバックする
+function gdriveGetToken() {
+  if (location.protocol === "file:") return Promise.reject(gdriveErr("env"));
+  if (navigator.onLine === false) return Promise.reject(gdriveErr("offline"));
+  var cid = gdriveClientId();
+  if (!cid) return Promise.reject(gdriveErr("api"));
+  if (gdrive.token && Date.now() < gdrive.tokenExp - 60000) return Promise.resolve(gdrive.token);
+  return gdriveLoadGis().then(function () {
+    if (!gdriveConsented()) return gdriveRequestToken(cid, false);
+    return gdriveRequestToken(cid, true).catch(function () {
+      return gdriveRequestToken(cid, false); // 無言取得に失敗したらポップアップで取り直す
+    });
+  }, function () {
+    throw gdriveErr("gis");
+  });
+}
+// メモリ上のトークンを破棄する。revoke=true なら可能なら失効も呼ぶ(失敗しても無視。
+// GIS未読み込みならそのために読み込むことはしない=無用な外部通信を作らない)
+function gdriveResetToken(revoke) {
+  var t = gdrive.token;
+  gdrive.token = null;
+  gdrive.tokenExp = 0;
+  if (revoke && t) {
+    try {
+      if (window.google && window.google.accounts && window.google.accounts.oauth2
+        && typeof window.google.accounts.oauth2.revoke === "function") {
+        window.google.accounts.oauth2.revoke(t, function () { /* 結果は使わない */ });
+      }
+    } catch (e) { /* 失効の失敗は無視(計画.md §2 (3)) */ }
+  }
+}
+// Drive API 呼び出し(通信先は www.googleapis.com のみ)。401はトークン破棄(次のタップで取り直し)
+function gdriveFetch(url, opts, token) {
+  opts = opts || {};
+  opts.headers = opts.headers || {};
+  opts.headers["Authorization"] = "Bearer " + token;
+  return fetch(url, opts).then(function (r) {
+    if (!r.ok) {
+      if (r.status === 401) gdriveResetToken(false);
+      throw gdriveErr("api");
+    }
+    return r.json().catch(function () { return {}; });
+  }, function () {
+    throw gdriveErr(navigator.onLine === false ? "offline" : "api");
+  });
+}
+// 検索クエリ内の名前のエスケープ(' と \)
+function gdriveQ(s) { return String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'"); }
+function gdriveList(token, q) {
+  var url = GDRIVE_API + "?q=" + encodeURIComponent(q) + "&fields=" + encodeURIComponent("files(id,name)") + "&pageSize=10&spaces=drive";
+  return gdriveFetch(url, { method: "GET" }, token);
+}
+// フォルダ「経理台帳控え」を検索(見つからなければ ""。作成はしない=接続テストでも使う読み取りのみ)
+function gdriveFindFolder(token) {
+  var q = "name='" + gdriveQ(GDRIVE_FOLDER) + "' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+  return gdriveList(token, q).then(function (d) {
+    return (d && Array.isArray(d.files) && d.files.length > 0) ? String(d.files[0].id) : "";
+  });
+}
+function gdriveCreateFolder(token) {
+  return gdriveFetch(GDRIVE_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json; charset=UTF-8" },
+    body: JSON.stringify({ name: GDRIVE_FOLDER, mimeType: "application/vnd.google-apps.folder" })
+  }, token).then(function (d) {
+    if (!d || !d.id) throw gdriveErr("api");
+    return String(d.id);
+  });
+}
+// フォルダ内の同名ファイルを検索(同日2回目の上書き用。見つからなければ "")
+function gdriveFindFile(token, folderId, name) {
+  var q = "name='" + gdriveQ(name) + "' and '" + gdriveQ(folderId) + "' in parents and trashed=false";
+  return gdriveList(token, q).then(function (d) {
+    return (d && Array.isArray(d.files) && d.files.length > 0) ? String(d.files[0].id) : "";
+  });
+}
+// multipart アップロード(drive/v3)。fileId ありなら上書きPATCH・無ければ新規POST(計画.md §2 (4))
+// mime は中身の種類(省略時は従来どおり JSON。2026-07-22改良2で閲覧用CSVにも使うため引数化)
+function gdriveUpload(token, folderId, name, fileId, content, mime) {
+  var meta = fileId ? { name: name } : { name: name, parents: [folderId] };
+  var boundary = "keiri_boundary_" + Date.now();
+  var body = "--" + boundary + "\r\n"
+    + "Content-Type: application/json; charset=UTF-8\r\n\r\n"
+    + JSON.stringify(meta) + "\r\n"
+    + "--" + boundary + "\r\n"
+    + "Content-Type: " + (mime || "application/json; charset=UTF-8") + "\r\n\r\n"
+    + content + "\r\n"
+    + "--" + boundary + "--";
+  var url = GDRIVE_UPLOAD + (fileId ? "/" + encodeURIComponent(fileId) : "") + "?uploadType=multipart";
+  return gdriveFetch(url, {
+    method: fileId ? "PATCH" : "POST",
+    headers: { "Content-Type": "multipart/related; boundary=" + boundary },
+    body: body
+  }, token).then(function (d) {
+    if (!d || !d.id) throw gdriveErr("api");
+    return d;
+  });
+}
+// 案内バーの表示判定(計画.md §2 (5)+リーダー確定: Client ID設定済み+記帳1件以上+未実施または7日以上前。初回から出す)
+function gdriveDaysAgo() {
+  if (!state.lastDriveBackup) return null;
+  var d = String(state.lastDriveBackup).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return null; // 形が崩れていたら未実施扱い(バーが出るだけで安全側)
+  var n = Math.floor((new Date(todayStr()) - new Date(d)) / 86400000);
+  return Number.isFinite(n) ? n : null;
+}
+function gdriveBarInfo() {
+  if (!gdriveClientId() || state.entries.length === 0) return { show: false };
+  var days = gdriveDaysAgo();
+  if (days !== null && days < 7) return { show: false };
+  return { show: true, label: days === null ? "ドライブへ控えを保存(はじめての控え)" : "ドライブへ控えを保存(前回" + days + "日前)" };
+}
+// 案内バーのタップ → トークン取得 → フォルダ検索/作成 → 同名検索 → 新規/上書きアップロード。
+// 2026-07-22改良2: JSON控えに加えて、閲覧用の全記帳CSVも同じフォルダへ保存する(同日2回目はどちらも上書き)。
+// 成功したときだけ lastDriveBackup 更新+markBackup(既存の控え督促もリセット)。失敗時は1行エラーのみ(自動リトライなし)
+function gdriveBackup() {
+  if (gdrive.busy) return;
+  gdrive.busy = true;
+  ui.gdriveMsg = "";
+  renderNotices(); // バーを「保存中…」表示(無効化)にする
+  var token = "";
+  var jsonDone = false; // JSONだけ成功して閲覧用CSVで失敗したときの見分け(その場合も「成功」にはしない)
+  gdriveGetToken().then(function (t) {
+    token = t;
+    return gdriveFindFolder(token);
+  }).then(function (folderId) {
+    return folderId ? folderId : gdriveCreateFolder(token);
+  }).then(function (folderId) {
+    var jsonName = "経理台帳控え_" + todayStr() + ".json"; // 既存のファイル保存と同名(計画.md §2 (4))
+    return gdriveFindFile(token, folderId, jsonName).then(function (fileId) {
+      // 中身は既存のJSON控えと同一: JSON.stringify(state) 丸ごと
+      return gdriveUpload(token, folderId, jsonName, fileId, JSON.stringify(state));
+    }).then(function () {
+      jsonDone = true;
+      // 閲覧用CSV(全行12列・BOM付きUTF-8)。同名があれば上書き(JSONと同じ規則)
+      var csvName = "経理台帳_全記帳_" + todayStr() + ".csv";
+      return gdriveFindFile(token, folderId, csvName).then(function (fileId) {
+        return gdriveUpload(token, folderId, csvName, fileId, buildViewCsv(), "text/csv; charset=UTF-8");
+      });
+    });
+  }).then(function () {
+    gdrive.busy = false;
+    state.lastDriveBackup = nowStamp();
+    markBackup(); // lastBackup=当日+自動保存(既存の控え督促の黄・赤もリセットされる)
+    ui.info = "ドライブに保存しました。";
+    render(); // 表示条件が満たされなくなるのでバーが消える
+    if (ui.page === "settings") renderPage(); // 「最後のドライブ控え」表示の更新
+  }).catch(function (err) {
+    gdrive.busy = false;
+    // 失敗時は lastBackup・lastDriveBackup を動かさない。
+    // JSONだけ成功した場合も成功扱いにせず、もう一度のタップで両方そろえてもらう(上書きなので二重にはならない)
+    ui.gdriveMsg = jsonDone
+      ? "閲覧用CSVの保存に失敗しました(JSON控えは保存済みです)。もう一度タップしてください。"
+      : gdriveFailText(err);
+    renderNotices();
+  });
+}
+// 設定ページ: Client ID の保存
+function gdriveCidSave() {
+  var el = document.getElementById("gdriveCidInput");
+  var v = el ? el.value.trim() : "";
+  if (!v) {
+    ui.gdriveSetMsg = "Client IDを入力してください(接続をやめるときは「接続解除」を押してください)。";
+    renderPage();
+    return;
+  }
+  try {
+    localStorage.setItem(GDRIVE_CID_KEY, v);
+  } catch (e) {
+    ui.gdriveSetMsg = "保存できませんでした(ブラウザの保存領域に書き込めません)。";
+    renderPage();
+    return;
+  }
+  gdriveResetToken(false); // IDを差し替えたら古いトークンは使わない
+  ui.gdriveMsg = "";
+  ui.gdriveSetMsg = "Client IDを保存しました。";
+  renderPage();
+  render(); // 案内バーの表示条件が変わるため
+}
+// 設定ページ: 接続テスト(トークン取得→フォルダ検索までの読み取りのみ。フォルダ作成はしない)
+function gdriveTest() {
+  if (gdrive.busy) return;
+  if (!gdriveClientId()) {
+    ui.gdriveSetMsg = "先にClient IDを保存してください。";
+    renderPage();
+    return;
+  }
+  gdrive.busy = true;
+  ui.gdriveSetMsg = "接続を確認しています…";
+  renderPage();
+  gdriveGetToken().then(function (token) {
+    return gdriveFindFolder(token);
+  }).then(function (folderId) {
+    gdrive.busy = false;
+    ui.gdriveSetMsg = folderId
+      ? "接続できました(控えのフォルダも確認できました)。"
+      : "接続できました(フォルダは初回の保存時に作られます)。";
+    renderPage();
+  }).catch(function (err) {
+    gdrive.busy = false;
+    ui.gdriveSetMsg = gdriveFailText(err);
+    renderPage();
+  });
+}
+// 設定ページ: 接続解除(Client ID・許可済みフラグ削除+トークン破棄・可能なら失効。ドライブ上の控えファイルは消さない)
+function gdriveDisconnect() {
+  try { localStorage.removeItem(GDRIVE_CID_KEY); } catch (e) { /* 何もしない */ }
+  try { localStorage.removeItem(GDRIVE_CONSENT_KEY); } catch (e) { /* 何もしない */ }
+  gdriveResetToken(true);
+  ui.gdriveMsg = "";
+  ui.gdriveSetMsg = "接続を解除しました(ドライブ上の控えファイルはそのまま残っています)。";
+  renderPage();
+  render(); // 案内バーが消える
+}
+
 // ---------- 削除ログ(2026-07-20追加) ----------
 // 外部から来た削除ログを検証・整形する(loadState と JSON復元で共用)。
 // 不正な行は捨てず、各項目を安全な値(文字列・整数)に整えて残す
@@ -2466,6 +2832,9 @@ function importJson() {
   state.lastBackup = d.lastBackup || "";
   // 最終保存時刻(2026-07-21追加): 控えに無い(古い控えの)場合は今の値を保持(直後の自動保存で更新される)
   state.lastSavedAt = typeof d.lastSavedAt === "string" ? d.lastSavedAt : state.lastSavedAt;
+  // 最後のドライブ控え日時(2026-07-22 第9段): 古い控えに無ければ ""=未実施。
+  // 古い控えの復元で値が巻き戻っても、案内バーが出るだけで安全側(計画.md §5)
+  state.lastDriveBackup = typeof d.lastDriveBackup === "string" ? d.lastDriveBackup : "";
   // 削除ログ(2026-07-20追加): 控えに無い(この機能より古い控えの)場合は、今のログを保持する
   // (原本写真の整理待ちの記録を、復元操作で失わないため)
   state.deletedLog = Array.isArray(d.deletedLog) ? sanitizeDeletedLog(d.deletedLog) : state.deletedLog;
@@ -2500,6 +2869,7 @@ function openPage(name) {
   ui.page = name;
   ui.selfTestMsg = "";
   ui.jsonMsg = "";
+  ui.gdriveSetMsg = ""; // ドライブ控え欄のメッセージも開き直したら消す(2026-07-22 第9段)
   ui.logMsg = "";
   ui.logClearConfirm = false;
   // 名前の統合(2026-07-21改修14-4)は、ページを開き直したら選び直しから始める
@@ -3223,6 +3593,16 @@ function renderSaveBar() {
 
 function renderNotices() {
   var h = "";
+  // ドライブ控えの案内バー(2026-07-22 第9段): お知らせ欄の最上部。ワンタップでドライブへJSON控えを保存。
+  // 表示条件は gdriveBarInfo(Client ID設定済み+記帳1件以上+ドライブ控え未実施または7日以上前)
+  var gbar = gdriveBarInfo();
+  if (gbar.show) {
+    h += '<div class="notice notice-info gdrive-bar">'
+      + '<button class="gdrive-go" data-act="gdrive-backup"' + (gdrive.busy ? ' disabled' : '') + '>'
+      + esc(gdrive.busy ? "保存中…" : gbar.label) + '</button>'
+      + (ui.gdriveMsg ? '<div class="gdrive-err">' + esc(ui.gdriveMsg) + '</div>' : '')
+      + '</div>';
+  }
   // 控えの状態表示(2026-07-20補強・壁打ち補強案1,2): 常時表示+段階化(7日で黄・60日で赤)。
   // 推奨する控えは、丸ごと戻せる「JSON控え」に統一。
   // 「控えの後の記帳」は、記帳の日付が最終控え日より後のものを数えた概算(日付ベースの目安)
@@ -4739,6 +5119,17 @@ function renderPage() {
     // 公開URLで使うときの注意(2026-07-21改修13-10 ユーザー指示で引っ越しの記述は削除。安全の注意だけ1行残す)
     + '<div style="margin-top:8px;">公開URLで使うときは、<strong>この台帳だけを置くURL</strong>にしてください(同じ ○○.github.io の下に別のページを置くと、そのページから台帳のデータを読めてしまいます)。</div>')
 
+    // Googleドライブ控え(2026-07-22 第9段): Client ID入力・接続テスト・最後のドライブ控え・接続解除。説明は最小限
+    + secHtml("gdrive", "Googleドライブ控え",
+      '公開URL(github.io)で開いたときに使えます。Client IDの作り方はチャットで聞いてください。<br>'
+    + '控えフォルダ(経理台帳控え)を他の人(管理者)に共有すると、その人のPCからも閲覧できます。<br>'
+    + '<input type="text" id="gdriveCidInput" placeholder="Client ID(○○.apps.googleusercontent.com)" value="' + esc(gdriveClientId()) + '" style="margin-top:6px;">'
+    + '<button class="sub-act" data-act="gdrive-cid-save">Client IDを保存</button>'
+    + '<button class="sub-act" data-act="gdrive-test"' + (gdrive.busy ? ' disabled' : '') + '>接続テスト</button>'
+    + '<div style="margin-top:6px;">最後のドライブ控え: ' + esc(state.lastDriveBackup || "未実施") + '</div>'
+    + '<button class="sub-act" data-act="gdrive-disconnect" style="color:var(--warn);border-color:var(--warn);">接続解除</button>'
+    + (ui.gdriveSetMsg ? '<div class="notice notice-info" style="margin-top:8px;">' + esc(ui.gdriveSetMsg) + '</div>' : ''))
+
     + secHtml("dellog", "削除ログ(原本写真の整理用)",
       '記帳を削除すると、消した内容(削除日・日付・店名・金額・科目・メモ)がここに記録されます。現在 <strong>' + state.deletedLog.length + '件</strong>。<br>'
     + '「削除ログをコピー」でコピーした内容をチャット(Claude Code)に貼り付けると、対応するレシート原本写真を「削除済み」フォルダへ移動してもらえます。移動が済んだら「ログをクリア」で空にしてください。'
@@ -4804,6 +5195,17 @@ function renderPage() {
     + secHtml("money", "金額のきまり",
       '金額は税込合計を整数(円)で記録します。小数は入力できません。アプリの中で税抜計算や割り算はしないので、集計は1円もずれません。<br>'
       + '返金・値引きは「-500」のように<strong>マイナスの金額</strong>で記帳できます。承認時に確認が出て、台帳には <strong>△500</strong> のように朱色で表示され、月合計・科目別集計から差し引かれます(CSVには -500 という数値のまま出力されます)。')
+
+    // 共有と納品について(2026-07-22改修: ユーザー承認済み文面)
+    + secHtml("share", "共有と納品について",
+      'このアプリは<strong>「器(この画面)」と「中身(記帳データ)」が別々</strong>です。中身は<strong>開いた人の端末のブラウザ内にだけ</strong>保存され、サーバーにもGitHubにも送られません。<br>'
+    + '・<strong>URLを共有すると、相手には空の台帳が開きます。</strong>相手の記帳は相手の端末だけに貯まり、お互いのデータは見えません。<br>'
+    + '・アプリを更新(index.htmlの差し替え)しても、各自のデータはそのまま残ります。<br>'
+    + '・<strong>相手に渡すときに伝える3点</strong>: ①Safariで開いて<strong>ホーム画面に追加</strong> ②週1で<strong>JSON控えを自分のクラウドに保存</strong> ③ブラウザの<strong>履歴・サイトデータの全削除をしない</strong><br>'
+    + '・運用する人がGoogleドライブ控えを接続すると、控えはその人のドライブに貯まります。控えフォルダを管理者に共有すれば、管理者はPCからいつでも閲覧できます。<br>'
+    + '・同じ端末・同じブラウザで開くと同じ台帳が見えます(分けたい場合はブラウザのユーザーを分けます)。<br>'
+    + '・データを消したいときは、JSON控えを取ってから、ブラウザのサイトデータ削除で全消去できます。<br>'
+    + '・帳簿の保存義務は<strong>使う人それぞれ</strong>にあります(週1の控えを推奨)。')
 
     + '</div></div>';
 }
@@ -4983,6 +5385,11 @@ var ACTIONS = {
   "copy-json": function () { copyJson(); },
   "dl-json": function () { downloadJson(); },
   "import-json": function () { importJson(); },
+  // Googleドライブ控え(2026-07-22 第9段)
+  "gdrive-backup": function () { gdriveBackup(); },
+  "gdrive-cid-save": function () { gdriveCidSave(); },
+  "gdrive-test": function () { gdriveTest(); },
+  "gdrive-disconnect": function () { gdriveDisconnect(); },
   "copy-dellog": function () { copyDeletedLog(); },
   "clear-dellog": function () { ui.logClearConfirm = true; ui.logMsg = ""; renderPage(); },
   "clear-dellog-go": function () { clearDeletedLog(); },
