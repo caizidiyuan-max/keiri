@@ -204,6 +204,9 @@
     background: var(--card); color: var(--ink); border: 1.5px solid var(--line); flex-shrink: 0;
   }
   .tab.on { background: var(--blue); color: #FFF; border-color: var(--blue); font-weight: 800; }
+  /* 「◯年 全体」チップ(2026-07-22改修18b): 月チップと区別できるよう破線枠+左に余白 */
+  .tab.tab-year { margin-left: 6px; border-style: dashed; }
+  .tab.tab-year.on { border-style: solid; }
   /* 取引先チップの長押し2秒(2026-07-21改修11-1: 通常タップ=単一選択 / 2秒長押し=複数選択)。
      長押し中は左から色が満ちていく進行表示を出す(色だけでなく枠も太くする) */
   .tab.lp-target { position: relative; overflow: hidden; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
@@ -358,6 +361,9 @@
   .merge-pick { margin-bottom: 8px; }
   .merge-pick .lb { font-size: 14px; font-weight: 800; color: var(--sub); margin-top: 6px; }
   .merge-pick select { width: 100%; font-size: 16px; padding: 12px 10px; min-height: 52px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); font-family: var(--font-ud); }
+  .merge-pick input { width: 100%; font-size: 16px; padding: 12px 10px; min-height: 52px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); font-family: var(--font-ud); box-sizing: border-box; }
+  /* まとめる別名の複数選択リスト(2026-07-22改修18c): チップを折り返し、多いときは縦スクロール */
+  .merge-alias-list { display: flex; flex-wrap: wrap; gap: 8px; max-height: 200px; overflow-y: auto; margin: 6px 0 4px; padding: 2px; }
   .merge-go { width: 100%; min-height: 52px; font-size: 16px; font-weight: 800; color: #FFF; background: var(--purple); border: none; border-radius: 10px; margin-top: 8px; }
   .merge-hit { border: 1.5px solid var(--purple); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; background: var(--purple-bg); }
   .merge-hit .pair { font-size: 15px; font-weight: 800; color: var(--ink); line-height: 1.6; }
@@ -538,6 +544,8 @@
   </header>
 
   <div id="saveBar"></div>
+  <!-- 表示中の月(2026-07-22改修18): ここで選んだ月にサマリー・科目別集計・台帳が連動する -->
+  <div id="monthNav"></div>
   <div id="summary"></div>
   <div id="notices"></div>
 
@@ -622,6 +630,7 @@ var state = {
   rules: [],
   pendings: [],
   clientList: [],
+  aliasMap: {},    // 統合の記憶(2026-07-22改修19): 別名(正規化キー)→ {from, to, kind}。以後の入力を正式名へ自動変換する
   editDraft: null,
   lastBackup: "",
   lastSavedAt: "", // 最終保存日時 "YYYY-MM-DD HH:MM"(2026-07-21 ユーザー指示: 保存状態の常時表示用。persistNow成功時に更新)
@@ -645,7 +654,10 @@ var ui = {
   editNeg: null,         // 編集フォームのマイナス保存の確認中 {amt, sum}(2026-07-21改修13-6)
   viewYear: "all",
   viewClients: [],       // 取引先フィルタ(2026-07-21改修C: 複数選択。空=すべて)
-  ledgerMonth: "",       // 台帳の月ページ(2026-07-21改修C。空=データのある最新月)
+  ledgerMonth: "",       // 台帳の月ページ(2026-07-21改修C。空=データのある最新月・改修18で viewMonth に統合)
+  viewMonth: "",         // メイン画面の「表示中の月」(2026-07-22改修18。空=データのある最新月。サマリー・科目別・台帳が連動)
+  viewScope: "month",    // "month" | "year"(2026-07-22改修18b: 月ナビの「年全体」表示。確定申告の年間科目別に使う)
+  viewYearSel: "",       // 年全体で選んでいる年 "YYYY"(空=データのある最新年)
   billsMonth: "",        // 請求ビューの月ページ(同上)
   billsCollectConfirm: null, // 月まとめ回収の確認中 {type:"collect"|"cancel", month}
   billOpen: {},          // 「割り勘・立替」欄の開閉(キー: pending id / "__draft__")
@@ -671,10 +683,13 @@ var ui = {
   askMsg: "",
   // 設定ページの折りたたみ(2026-07-21改修14-3): キー=セクション名。未設定なら既定値(現在の状態だけ開く)
   secOpen: {},
-  // 名前の統合(2026-07-21改修14-4)
+  // 名前の統合(2026-07-21改修14-4。2026-07-22改修18c で複数別名・まとめ先の新規入力に対応)
   mergeKind: "client",   // "client"=取引先名 / "store"=店名
-  mergeFrom: "",         // 統合したい名前(この名前が消えて、まとめ先に変わる)
-  mergeTo: "",           // まとめ先(正式名)
+  mergeFrom: "",         // (旧・単一統合用。18cで mergeFroms に移行)
+  mergeTo: "",           // まとめ先(正式名。既存の名前を選んだとき)
+  mergeFroms: [],        // まとめる別名(複数選択。この名前たちが消えて、まとめ先に変わる)
+  mergeToAdding: false,  // まとめ先を「新しい名前」で入力中か
+  mergeToNew: "",        // 新しいまとめ先の名前(mergeToAdding のとき有効)
   mergeConfirm: null,    // 確認中 {kind, from, to, entryCount, billCount, ruleCount}
   mergeMsg: "",
   // 保存状態の常時表示(2026-07-21 ユーザー指示)
@@ -714,6 +729,54 @@ function yenDisp(n) {
 function monthLabel(ym) {
   var p = ym.split("-");
   return p[0] + "年" + Number(p[1]) + "月";
+}
+// 前後の暦月(2026-07-22改修18)。データの無い月へも1ヶ月ずつ移動できるように暦で計算する
+function prevMonth(ym) {
+  var p = String(ym).split("-"); var y = +p[0], m = +p[1];
+  m--; if (m < 1) { m = 12; y--; }
+  return y + "-" + String(m).padStart(2, "0");
+}
+function nextMonth(ym) {
+  var p = String(ym).split("-"); var y = +p[0], m = +p[1];
+  m++; if (m > 12) { m = 1; y++; }
+  return y + "-" + String(m).padStart(2, "0");
+}
+// 記帳のある月の一覧を昇順(古い→新しい)で返す(2026-07-22改修18)
+function dataMonths() {
+  var set = {};
+  state.entries.forEach(function (e) {
+    var ym = String(e.date || "").slice(0, 7);
+    if (ym) set[ym] = 1;
+  });
+  return Object.keys(set).sort();
+}
+// メイン画面の「表示中の月」(2026-07-22改修18)。ユーザーが選んだ月、なければデータのある最新月
+function curViewMonth() {
+  if (ui.viewMonth) return ui.viewMonth;
+  var ms = dataMonths();
+  return ms.length ? ms[ms.length - 1] : todayStr().slice(0, 7);
+}
+// 記帳のある年の一覧を昇順で返す(2026-07-22改修18b)
+function dataYears() {
+  var set = {};
+  state.entries.forEach(function (e) { var y = String(e.date || "").slice(0, 4); if (y) set[y] = 1; });
+  return Object.keys(set).sort();
+}
+// 「年全体」で表示中の年(2026-07-22改修18b)。選んだ年、なければデータのある最新年
+function curViewYear() {
+  if (ui.viewYearSel) return ui.viewYearSel;
+  var ys = dataYears();
+  return ys.length ? ys[ys.length - 1] : todayStr().slice(0, 4);
+}
+function viewIsYear() { return ui.viewScope === "year"; }
+// 表示中(月 or 年全体)にその記帳が含まれるか
+function entryMatchesView(e) {
+  var d = String(e.date || "");
+  return viewIsYear() ? (d.slice(0, 4) === curViewYear()) : (d.slice(0, 7) === curViewMonth());
+}
+// 表示中の見出しラベル
+function viewLabel() {
+  return viewIsYear() ? (curViewYear() + "年 全体") : monthLabel(curViewMonth());
 }
 function newId() { return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8); }
 
@@ -1019,6 +1082,8 @@ function loadState() {
       ? d.pendings.filter(function (p) { return p && typeof p === "object"; }).map(migratePendingBills)
       : [];
     state.clientList = sanitizeClientList(d.clientList);
+    // 統合の記憶(2026-07-22改修19)。不正な型・自己参照・ループは捨てる(旧データはフィールド無し=空)
+    state.aliasMap = sanitizeAliasMap(d.aliasMap);
     state.editDraft = (d.editDraft && typeof d.editDraft === "object") ? d.editDraft : null;
     if (state.editDraft) {
       var draftWasOld = !Array.isArray(state.editDraft.bills);
@@ -1067,7 +1132,8 @@ function upsertRule(list, store, category) {
   return next;
 }
 function findRule(store) {
-  var key = normalize(store);
+  // 統合の記憶(2026-07-22改修19): 別名で来た店名は正式名に読み替えてから照合する
+  var key = normalize(aliasResolve("store", String(store == null ? "" : store).trim()));
   if (!key) return null;
   for (var i = 0; i < state.rules.length; i++) {
     if (state.rules[i].key === key) return state.rules[i];
@@ -1318,7 +1384,15 @@ function discard(id) {
 
 // 承認1件分の検証。戻り値 {entry, error}: OKなら entry に記帳用データ、NGなら entry=null(error に理由)
 function validatePending(p) {
-  var store = String(p.store || "").trim();
+  // 統合の記憶(2026-07-22改修19): 別名で入力された店名・取引先は、承認の瞬間に正式名へ静かに読み替える
+  var store = aliasResolve("store", String(p.store || "").trim());
+  var rawClient = String(p.client || "").trim();
+  var client = aliasResolve("client", rawClient);
+  // 回収の行は、自動でつけた形の店名「◯◯から回収」も取引先名に追随させる(手で書いた店名は残す)
+  if (p.collect === true && client !== rawClient) {
+    if (store === rawClient + "から回収") store = client + "から回収";
+    else if (store === rawClient + "さんから回収") store = client + "さんから回収";
+  }
   // 桁が大きすぎる金額は記帳できない(2026-07-21改修13-8)。
   // 通していたら丸められて記帳され、再読み込みでその記帳が黙って消えていた
   if (amountTooBig(p.amount)) {
@@ -1341,6 +1415,8 @@ function validatePending(p) {
   // 複数請求(2026-07-21改修A): bills を検証。整数でない・Σ請求分>総額 は承認不可(黙って丸めない)
   var pb = parseBillsInput(p, amt);
   if (pb.error) return { entry: null, error: pb.error };
+  // 請求先も統合の記憶で正式名に読み替える(2026-07-22改修19)
+  pb.bills.forEach(function (b) { b.to = cleanBillName(aliasResolve("client", b.to)); });
   // 人数(2026-07-21追加): 不正値は1に補正。会食系の科目で2名以上のとき、メモに「○名」を自動追記(重複防止つき)
   var persons = parsePersons(p.persons);
   var memo = String(p.memo || "");
@@ -1350,7 +1426,7 @@ function validatePending(p) {
   return {
     entry: {
       id: p.id, date: p.date || todayStr(), store: store, amount: amt,
-      category: p.category, payment: p.payment, client: String(p.client || "").trim(),
+      category: p.category, payment: p.payment, client: client,
       memo: memo, corrected: p.category !== p.aiCategory,
       bills: pb.bills,
       ghost: p.ghost === true,
@@ -1576,6 +1652,9 @@ function importLines() {
       billRaw = parts[7] || "";
       billToRaw = parts[8] || "";
     }
+    // 統合の記憶(2026-07-22改修19): 別名で来た店名・取引先は正式名に読み替えて取り込む(静かに変換)
+    store = aliasResolve("store", String(store || "").trim());
+    client = aliasResolve("client", String(client || "").trim());
     // 貼り付けた行に有効な科目(15種のいずれか)が書かれていれば、それを最優先で採用する
     // (チャット側で金額基準により仕分けた科目を、学習ルールが黙って上書きしないため)。
     // 全角括弧などの表記ゆれは matchCategory で吸収し、保存は常に正式表記に統一する。
@@ -1601,7 +1680,8 @@ function importLines() {
     // 請求分合計を請求先数で均等割り(切り捨て)し、端数は先頭の請求先に足す(1円も消えない)
     var importBills = [];
     if (bill > 0) {
-      var billNames = String(billToRaw || "").split("/").map(function (s) { return cleanBillName(s); }).filter(Boolean);
+      // 請求先も統合の記憶で正式名に読み替える(2026-07-22改修19)
+      var billNames = String(billToRaw || "").split("/").map(function (s) { return cleanBillName(aliasResolve("client", s)); }).filter(Boolean);
       if (billNames.length <= 1) {
         importBills = [{ to: billNames[0] || "", amount: String(bill), status: "unpaid", paidDate: "" }];
       } else {
@@ -1776,6 +1856,15 @@ function saveEdit(confirmed) {
     return;
   }
   ui.error = "";
+  // 統合の記憶(2026-07-22改修19): 別名で入力された店名・取引先・請求先は、保存の瞬間に正式名へ静かに読み替える
+  var storeOut = aliasResolve("store", String(d.store || "").trim());
+  var rawClient = String(d.client || "").trim();
+  var clientOut = aliasResolve("client", rawClient);
+  if (d.collect === true && clientOut !== rawClient) {
+    if (storeOut === rawClient + "から回収") storeOut = clientOut + "から回収";
+    else if (storeOut === rawClient + "さんから回収") storeOut = clientOut + "さんから回収";
+  }
+  pb.bills.forEach(function (b) { b.to = cleanBillName(aliasResolve("client", b.to)); });
   // 人数(2026-07-21追加): 不正値は1に補正。会食系の科目で2名以上ならメモに「○名」を追記(重複防止つき)
   var persons = parsePersons(d.persons);
   var memoOut = String(d.memo || "");
@@ -1785,9 +1874,9 @@ function saveEdit(confirmed) {
   for (var i = 0; i < state.entries.length; i++) {
     var x = state.entries[i];
     if (x.id === d.id) {
-      x.date = d.date; x.store = String(d.store || "").trim(); x.amount = amt;
+      x.date = d.date; x.store = storeOut; x.amount = amt;
       x.category = d.category; x.payment = d.payment;
-      x.client = String(d.client || "").trim(); x.memo = memoOut;
+      x.client = clientOut; x.memo = memoOut;
       x.persons = persons;
       x.bills = pb.bills; // 回収状態(status/paidDate)は明細ごとに引き継がれる
       x.ghost = d.ghost === true; // 幽霊(2026-07-21改修D)
@@ -1799,10 +1888,10 @@ function saveEdit(confirmed) {
   state.entries.sort(function (a, b) { return b.date.localeCompare(a.date); });
   // 学習除外(2026-07-21改修B): 自動セットされた会食科目は学習しない(手動選択は従来どおり学習する)
   var skipLearn = d.catAuto === true && (d.category === "会議費" || d.category === "接待交際費");
-  if (String(d.store || "").trim() && !skipLearn) {
-    state.rules = upsertRule(state.rules, d.store, d.category);
+  if (storeOut && !skipLearn) {
+    state.rules = upsertRule(state.rules, storeOut, d.category);
   }
-  addClientToList(d.client);
+  addClientToList(clientOut);
   pb.bills.forEach(function (b) { addClientToList(b.to); }); // 請求先も取引先リストと共用
   state.editDraft = null;
   ui.expandedId = null;
@@ -1933,9 +2022,10 @@ function csvNeedsExport() {
   return csvTargets().filter(function (e) { return exportState(e) !== "done"; });
 }
 function csvMonthsAll() {
+  // 昇順(古い→新しい)で返す(2026-07-22改修18): CSVパネルの月チップも古い月が左・新しい月が右
   var set = {};
   csvTargets().forEach(function (e) { set[String(e.date || "").slice(0, 7)] = 1; });
-  return Object.keys(set).sort(function (a, b) { return b.localeCompare(a); });
+  return Object.keys(set).sort();
 }
 // いま出力しようとしている行(パネルの選択に対応)
 function csvScopeList() {
@@ -1945,6 +2035,11 @@ function csvScopeList() {
   if (ui.csvScope === "need") return csvNeedsExport();
   if (ui.csvScope === "month") {
     return csvTargets().filter(function (e) { return String(e.date || "").slice(0, 7) === ui.csvMonth; });
+  }
+  // 年全体の出力(2026-07-22改修18b): 対象年は選択中の月の年(ui.csvMonth の先頭4桁)
+  if (ui.csvScope === "year") {
+    var y = String(ui.csvMonth || "").slice(0, 4);
+    return csvTargets().filter(function (e) { return String(e.date || "").slice(0, 4) === y; });
   }
   return csvTargets();
 }
@@ -1999,12 +2094,22 @@ function toggleExported(id) {
   render();
 }
 function openCsv() {
-  var months = csvMonthsAll();
-  ui.csvScope = "month";
-  ui.csvMonth = months.indexOf(ui.csvMonth) !== -1 ? ui.csvMonth : (months[0] || todayStr().slice(0, 7));
+  // CSVパネルは「表示中」と同じ範囲で開く(2026-07-22改修18/18b・導線をそろえる)。
+  // 年全体なら「この年を出力」、月なら「この月を出力」。対象が無ければCSVに出る最新月にフォールバック
+  var months = csvMonthsAll(); // 昇順
+  ui.copyMsg = "";
+  if (viewIsYear()) {
+    var y = curViewYear();
+    var inY = months.filter(function (m) { return m.slice(0, 4) === y; });
+    if (inY.length) { ui.csvScope = "year"; ui.csvMonth = inY[inY.length - 1]; }
+    else { ui.csvScope = "month"; ui.csvMonth = months[months.length - 1] || todayStr().slice(0, 7); }
+  } else {
+    ui.csvScope = "month";
+    var want = curViewMonth();
+    ui.csvMonth = months.indexOf(want) !== -1 ? want : (months[months.length - 1] || todayStr().slice(0, 7));
+  }
   csvRefresh();
   ui.csvOpen = true;
-  ui.copyMsg = "";
   render();
 }
 function closeCsv() {
@@ -2349,6 +2454,8 @@ function importJson() {
     ? d.pendings.filter(function (p) { return p && typeof p === "object"; }).map(migratePendingBills)
     : [];
   state.clientList = sanitizeClientList(d.clientList);
+  // 統合の記憶(2026-07-22改修19)。控えに無い(この機能より古い控えの)場合は今の記憶を保持する
+  state.aliasMap = (d.aliasMap && typeof d.aliasMap === "object") ? sanitizeAliasMap(d.aliasMap) : state.aliasMap;
   state.editDraft = (d.editDraft && typeof d.editDraft === "object") ? d.editDraft : null;
   if (state.editDraft) {
     var draftWasOld = !Array.isArray(state.editDraft.bills);
@@ -2496,6 +2603,111 @@ function nameKeyLoose(s) {
   var k = nameKeyOf(t);
   k = stripAffix(k, COMPANY_KEY, false);
   return stripAffix(k, HONORIFICS, true);
+}
+
+// ---------- 統合の記憶(2026-07-22改修19 ユーザー指示) ----------
+// 統合を実行するたびに「別名 → 正式名」を state.aliasMap に記憶し、以後の入力
+// (貼り付け取り込み・承認・編集保存・学習ルールの照合)で別名が来たら正式名へ静かに変換する。
+// 照合は統合の判定と同じ正規化キー(nameKey: 全角半角・かな/カナ・大小文字・空白・記号のちがいを同一視)。
+// 記憶がさわるのは「これから入る名前」だけで、金額・過去の記帳は一切変えない(削除しても過去の記帳は変わらない)。
+function aliasCleanName(kind, s) {
+  return kind === "store" ? String(s == null ? "" : s).trim() : cleanBillName(s);
+}
+// aliasMap のキー。kind を頭に付けて、店名と取引先名の同名キーがぶつからないようにする
+function aliasKeyOf(kind, s) {
+  var k = nameKey(aliasCleanName(kind, s));
+  return k ? (kind === "store" ? "store|" : "client|") + k : "";
+}
+// 別名なら正式名を返す。記憶に無ければ元の値をそのまま返す(何も変えない)
+function aliasResolve(kind, name) {
+  var key = aliasKeyOf(kind, name);
+  if (!key) return name;
+  var a = state.aliasMap[key];
+  if (!a || typeof a.to !== "string" || !a.to) return name;
+  return a.to === aliasCleanName(kind, name) ? name : a.to;
+}
+// 統合の実行時に記憶する。連鎖(A→B、B→C)は登録時に A→C へ平坦化し、自己参照・ループは登録しない。
+// まとめ先が後から別の統合の別名になったら、既存の記憶も追随して平坦化する
+function aliasRegister(kind, from, to) {
+  var kd = kind === "store" ? "store" : "client";
+  var f = aliasCleanName(kd, from);
+  var t = aliasCleanName(kd, to);
+  if (!f || !t || f === t) return;                 // 自己参照は登録しない
+  var fKey = aliasKeyOf(kd, f);
+  if (!fKey) return;
+  // まとめ先がすでに別名なら、その先の正式名へ平坦化(A→B 登録時に B→C があれば A→C として記憶)
+  var tKey = aliasKeyOf(kd, t);
+  var hop = state.aliasMap[tKey];
+  if (hop && hop.to !== t) {
+    if (aliasKeyOf(kd, hop.to) === fKey) {
+      // 逆向きの記憶(t→f)が残っている: 最新の統合(→t)を正として逆向きを消す(ループは登録しない)
+      delete state.aliasMap[tKey];
+    } else {
+      t = aliasCleanName(kd, hop.to);
+      if (!t || f === t) return;
+    }
+  }
+  state.aliasMap[fKey] = { from: f, to: t, kind: kd };
+  // 既存の記憶のまとめ先が今回の別名(f)だったら、新しいまとめ先へ追随させる(X→f を X→t へ)
+  Object.keys(state.aliasMap).forEach(function (k) {
+    var a = state.aliasMap[k];
+    if (!a || a.kind !== kd || k === fKey) return;
+    if (aliasKeyOf(kd, a.to) === fKey) {
+      if (a.from === t) { delete state.aliasMap[k]; return; } // 追随すると自己参照になる記憶は消す
+      a.to = t;
+    }
+  });
+}
+// 記憶を1件消す(以後その別名は自動変換しない。過去の記帳は変えない)
+function aliasDelete(key) {
+  if (state.aliasMap[key]) {
+    delete state.aliasMap[key];
+    markDirty();
+  }
+  renderPage();
+}
+// 記憶の一覧(表示用)。取引先→店名の順・別名の五十音順
+function aliasList() {
+  return Object.keys(state.aliasMap).map(function (k) {
+    return { key: k, a: state.aliasMap[k] };
+  }).sort(function (x, y) {
+    return x.a.kind === y.a.kind ? x.a.from.localeCompare(y.a.from, "ja") : (x.a.kind === "client" ? -1 : 1);
+  });
+}
+// 外部から来た記憶を検証・整形する(loadState と JSON復元で共用)。
+// 不正な型は捨て、キーは名前から作り直す(壊れたキーを信用しない)。自己参照・ループも捨てる
+function sanitizeAliasMap(v) {
+  var out = {};
+  if (!v || typeof v !== "object" || Array.isArray(v)) return out;
+  Object.keys(v).forEach(function (k) {
+    var a = v[k];
+    if (!a || typeof a !== "object") return;
+    var kind = a.kind === "store" ? "store" : (a.kind === "client" ? "client" : "");
+    if (!kind || typeof a.from !== "string" || typeof a.to !== "string") return;
+    var f = aliasCleanName(kind, a.from);
+    var t = aliasCleanName(kind, a.to);
+    if (!f || !t || f === t) return;
+    var key = aliasKeyOf(kind, f);
+    if (!key) return;
+    out[key] = { from: f, to: t, kind: kind };
+  });
+  // 連鎖は正式名まで平坦化し、ループになっている記憶は捨てる
+  Object.keys(out).forEach(function (k) {
+    var a = out[k];
+    if (!a) return;
+    var seen = {};
+    seen[k] = 1;
+    for (var i = 0; i < 100; i++) {
+      var nk = aliasKeyOf(a.kind, a.to);
+      var nxt = out[nk];
+      if (!nxt || nxt.to === a.to) break;
+      if (seen[nk]) { delete out[k]; return; }
+      seen[nk] = 1;
+      a.to = nxt.to;
+    }
+    if (a.from === a.to) delete out[k];
+  });
+  return out;
 }
 // 統合の対象名の一覧(取引先名 / 店名)。使用回数つきで多い順に返す
 function mergeNames(kind) {
@@ -2703,6 +2915,9 @@ function mergeApply(kind, from, to) {
     // 回収の消し込みは「取引先の名前」で相手を見ているので、名前を変えたら作り直す(経費の金額は変わらない)
     applyCollections();
   }
+  // 統合の記憶(2026-07-22改修19): この統合を記憶し、以後の入力(取り込み・承認・編集保存・学習照合)で
+  // 同じ別名が来たら正式名へ静かに変換する(取引先ページの「統合の記憶」から個別に削除できる)
+  aliasRegister(kind, f, t);
   markDirty();
   return done;
 }
@@ -2749,6 +2964,114 @@ function mergeGo() {
       + (txt ? "(" + txt + "は変わりました)" : "") + "。";
   } else {
     ui.mergeMsg = "「" + m.from + "」を「" + m.to + "」にまとめました"
+      + (txt ? "(" + txt + ")" : "")
+      + "。経費の金額は変わっていません(未回収・預かりは組み替わることがあります)。";
+  }
+  render();
+  renderPage();
+}
+
+// ---------- 名前の統合(複数別名・2026-07-22改修18c) ----------
+// 種類ごとの「同じ名前か」判定(店名=trim一致 / 取引先=cleanBillNameで比較)
+function mergeSameName(kind, a, b) {
+  return kind === "store" ? String(a || "").trim() === String(b || "").trim() : sameClientName(a, b);
+}
+// いま指定されているまとめ先の名前(既存を選んだ値 or 新規入力)
+function mergeToName() { return String((ui.mergeToAdding ? ui.mergeToNew : ui.mergeTo) || "").trim(); }
+// 学習ルールを normalize キーで1本化(件数合算・科目は件数の多いほうを残す。2026-07-22改修18c)
+function dedupRules() {
+  var merged = [], idxByKey = {};
+  state.rules.forEach(function (x) {
+    var key = normalize(x.store);
+    if (!key) return;
+    var cnt = Number.isSafeInteger(Number(x.count)) && Number(x.count) > 0 ? Number(x.count) : 1;
+    if (idxByKey[key] === undefined) {
+      idxByKey[key] = merged.length;
+      merged.push({ key: key, store: x.store, category: x.category, count: cnt, _top: cnt });
+    } else {
+      var m = merged[idxByKey[key]];
+      m.count += cnt;
+      if (cnt > m._top) { m.category = x.category; m.store = x.store; m._top = cnt; }
+    }
+  });
+  state.rules = merged.map(function (m) { return { key: m.key, store: m.store, category: m.category, count: m.count }; });
+}
+// 統合後の後始末(2026-07-22改修18c・ユーザー指示3): 別名を参照元から確実に消し、重複を1本化する。
+// 「統合し終わった名前」が候補・一覧に残らないようにするための最終スイープ
+function purgeAfterMerge(kind, froms, to) {
+  if (kind === "store") {
+    dedupRules(); // 別名の店ルールが「まとめ先」キーに吸収され、重複が1本化される(count合算)
+    return;
+  }
+  var tc = cleanBillName(to);
+  // 別名を取引先リストから確実に除去(cleanBillName で比較。空になった取引先もここで消える)
+  state.clientList = state.clientList.filter(function (c) {
+    return !froms.some(function (f) { return sameClientName(c, f); });
+  });
+  addClientToList(tc); // まとめ先は必ず残す
+  // cleanBillName ベースの重複を除去(「/」ちがいで二重に並ぶのを防ぐ)
+  var seen = {}, next = [];
+  state.clientList.forEach(function (c) {
+    var k = cleanBillName(c);
+    if (!seen[k]) { seen[k] = 1; next.push(c); }
+  });
+  next.sort();
+  state.clientList = next;
+}
+// 複数別名の件数合計(確認パネル用)
+function mergeCountsMulti(kind, froms, to) {
+  var acc = { entry: 0, bill: 0, rule: 0, draft: 0, store: 0 };
+  (froms || []).forEach(function (f) {
+    var c = mergeCounts(kind, f, to);
+    acc.entry += c.entry; acc.bill += c.bill; acc.rule += c.rule; acc.draft += c.draft; acc.store += c.store;
+  });
+  return acc;
+}
+// 複数別名 → まとめ先 の確認を出す。まとめ先と同じ名前・重複は除く
+function mergeOpenConfirmMulti(kind, froms, to) {
+  ui.mergeMsg = "";
+  var t = String(to || "").trim();
+  if (!t) { ui.mergeMsg = "まとめ先(正式名)を選ぶか、新しい名前を入力してください。"; ui.mergeConfirm = null; renderPage(); return; }
+  var seen = {}, uniq = [];
+  (froms || []).forEach(function (x) {
+    var s = String(x || "").trim();
+    if (!s || mergeSameName(kind, s, t)) return;      // まとめ先と同じ名前は別名にしない
+    var k = kind === "store" ? s : cleanBillName(s);
+    if (seen[k]) return;                               // 重複除去
+    seen[k] = 1; uniq.push(s);
+  });
+  if (uniq.length === 0) { ui.mergeMsg = "まとめる別名を1つ以上選んでください(まとめ先と同じ名前は除きます)。"; ui.mergeConfirm = null; renderPage(); return; }
+  ui.mergeKind = kind;
+  ui.mergeConfirm = { kind: kind, froms: uniq, to: t };
+  renderPage();
+}
+// 複数別名の統合を実行
+function mergeGoMulti() {
+  var m = ui.mergeConfirm;
+  if (!m || !Array.isArray(m.froms)) return;
+  var done = { entry: 0, bill: 0, rule: 0, draft: 0, store: 0 };
+  m.froms.forEach(function (f) {
+    var d = mergeApply(m.kind, f, m.to);
+    done.entry += d.entry; done.bill += d.bill; done.rule += d.rule; done.draft += d.draft; done.store += d.store;
+  });
+  purgeAfterMerge(m.kind, m.froms, m.to);   // 別名を参照元から確実に消す・重複を1本化(ユーザー指示3)
+  var froms = m.froms.slice(), to = m.to;
+  ui.mergeConfirm = null;
+  ui.mergeFroms = [];
+  ui.mergeTo = "";
+  ui.mergeToAdding = false;
+  ui.mergeToNew = "";
+  // 別名が本当に消えたか、実際の一覧で確かめる
+  var names = mergeData(m.kind).names;
+  var left = froms.filter(function (f) {
+    return names.some(function (n) { return mergeSameName(m.kind, n.name, f); });
+  });
+  var txt = mergeCountText(done);
+  if (left.length > 0) {
+    ui.mergeMsg = "一部の名前(" + left.join("・") + ")はまとめきれませんでした。選び直してください"
+      + (txt ? "(" + txt + "は変わりました)" : "") + "。";
+  } else {
+    ui.mergeMsg = froms.length + "件の名前を「" + to + "」にまとめました"
       + (txt ? "(" + txt + ")" : "")
       + "。経費の金額は変わっていません(未回収・預かりは組み替わることがあります)。";
   }
@@ -2809,22 +3132,66 @@ function renderAskBox() {
         + '<div class="copy-block mono" id="askBlock">' + esc(ASK_TEXT).replace(/\n/g, "<br>") + '</div>'
         + '<button class="sub-act" data-act="copy-ask">お願い文をコピー</button>'
         + (ui.askMsg ? '<div class="notice notice-info" style="margin-top:8px;">' + esc(ui.askMsg) + '</div>' : '')
+        // 下端にも閉じるボタン(2026-07-22改修18c): 読み終えた位置ですぐ畳める。上の見出しの開閉も従来どおり
+        + '<button class="sub-act" data-act="ask-toggle" style="margin-top:8px;">とじる ▴</button>'
         + '</div>'
       : '')
     + '</div>';
 }
 
+// 表示中の月ナビ(2026-07-22改修18)。◀=古い月 / ▶=新しい月。下の月チップは昇順(古い←→新しい)。
+// ◀▶ は暦で1ヶ月ずつ動き、データの無い月にも移動できる(記帳のある範囲の外へは動かさない)
+function renderMonthNav() {
+  var el = document.getElementById("monthNav");
+  if (!el) return;
+  var ms = dataMonths(); // 昇順
+  if (ms.length === 0) { el.innerHTML = ""; return; }
+  var ys = dataYears();  // 昇順
+  var h = '<div class="month-nav">';
+  if (viewIsYear()) {
+    // 年全体モード(2026-07-22改修18b): ◀▶ は前後の年へ。年が1つなら両端無効
+    var y = curViewYear();
+    var yi = ys.indexOf(y);
+    var olderY = yi > 0 ? ys[yi - 1] : null;
+    var newerY = (yi !== -1 && yi < ys.length - 1) ? ys[yi + 1] : null;
+    h += '<button class="nav"' + (olderY ? ' data-act="view-year" data-name="' + esc(olderY) + '"' : ' disabled') + '>◀ 前の年</button>'
+      + '<span class="cur">' + esc(y) + '年 全体</span>'
+      + '<button class="nav"' + (newerY ? ' data-act="view-year" data-name="' + esc(newerY) + '"' : ' disabled') + '>次の年 ▶</button>';
+  } else {
+    var cur = curViewMonth();
+    var first = ms[0], last = ms[ms.length - 1];
+    var older = cur > first ? prevMonth(cur) : null;
+    var newer = cur < last ? nextMonth(cur) : null;
+    h += '<button class="nav"' + (older ? ' data-act="view-month" data-name="' + esc(older) + '"' : ' disabled') + '>◀ 前の月</button>'
+      + '<span class="cur">' + esc(monthLabel(cur)) + '</span>'
+      + '<button class="nav"' + (newer ? ' data-act="view-month" data-name="' + esc(newer) + '"' : ' disabled') + '>次の月 ▶</button>';
+  }
+  h += '</div>';
+  // チップ行: 月チップ(昇順)+ 末尾に各年の「◯年 全体」チップ(2026-07-22改修18b)
+  h += '<div class="tabs month-list">'
+    + ms.map(function (m) {
+        var on = !viewIsYear() && m === curViewMonth();
+        return '<button class="tab' + (on ? " on" : "") + '" data-act="view-month" data-name="' + esc(m) + '">' + esc(monthLabel(m)) + '</button>';
+      }).join("")
+    + ys.map(function (yy) {
+        var on = viewIsYear() && yy === curViewYear();
+        return '<button class="tab tab-year' + (on ? " on" : "") + '" data-act="view-year" data-name="' + esc(yy) + '">' + esc(yy) + '年 全体</button>';
+      }).join("")
+    + '</div>';
+  el.innerHTML = h;
+}
+
 function renderSummary() {
-  var thisMonth = todayStr().slice(0, 7);
   var total = 0, ghostSum = 0;
-  state.entries.forEach(function (e) {
-    if (String(e.date || "").slice(0, 7) === thisMonth) {
+  // 表示中(月 or 年全体)に連動(2026-07-22改修18/18b)。取引先フィルタとも併用
+  getFilteredEntries().forEach(function (e) {
+    if (entryMatchesView(e)) {
       total += entryOwn(e);
       if (e.ghost === true) ghostSum += entryOwn(e);
     }
   });
   document.getElementById("summary").innerHTML =
-    '<div class="summary"><span class="label">' + esc(monthLabel(thisMonth)) + 'の経費(自分負担)</span>'
+    '<div class="summary"><span class="label">' + esc(viewLabel()) + 'の経費(自分負担)</span>'
     + '<span class="amount' + (total < 0 ? ' amount-minus' : '') + '">' + esc(yenDisp(total)) + '</span>'
     + (ghostSum !== 0 ? '<span class="ghost-note">うち幽霊(CSV除外) ' + esc(yenDisp(ghostSum)) + '</span>' : '')
     + '</div>';
@@ -3667,22 +4034,15 @@ function renderFilters() {
       ? '<div class="multi-note">複数選択中(' + ui.viewClients.length + '件): ' + esc(ui.viewClients.join("・")) + ' — 「すべて」で解除できます</div>'
       : '<div class="multi-note" style="color:var(--sub);font-weight:700;">取引先はタップで1件だけ選択。2秒の長押しで複数選択(追加・解除)できます。</div>';
   }
-  var years = getYears();
-  if (years.length > 1) {
-    h += '<div class="tabs">' + ["all"].concat(years).map(function (y) {
-      return '<button class="tab' + (ui.viewYear === y ? " on" : "") + '" data-act="year-tab" data-name="' + esc(y) + '">'
-        + (y === "all" ? "全期間" : esc(y) + "年") + '</button>';
-    }).join("") + '</div>';
-  }
+  // 年タブは「表示中の月」ナビに統合(2026-07-22改修18)。月ナビ+月チップで年をまたいだ月移動ができる
   document.getElementById("filters").innerHTML = h;
 }
 
 function renderBreakdown() {
   var el = document.getElementById("breakdown");
   if (state.entries.length === 0) { el.innerHTML = ""; return; }
-  var source = getFilteredEntries().filter(function (e) {
-    return ui.viewYear === "all" || String(e.date || "").indexOf(ui.viewYear) === 0;
-  });
+  // 表示中(月 or 年全体)に連動(2026-07-22改修18/18b)。取引先フィルタと併用する
+  var source = getFilteredEntries().filter(function (e) { return entryMatchesView(e); });
   var by = {};
   // 自分負担ベース(総額−Σ請求分)で集計する。確定申告への転記はこの数字を使う
   var ghostSum = 0;
@@ -3694,7 +4054,7 @@ function renderBreakdown() {
     .sort(function (a, b) { return b[1] - a[1]; });
   var title = (ui.viewClients.length === 0 ? "科目別集計"
     : (ui.viewClients.length === 1 ? esc(ui.viewClients[0]) + "の科目別集計" : "選択中の取引先(" + ui.viewClients.length + "件)の科目別集計"))
-    + (ui.viewYear !== "all" ? "(" + esc(ui.viewYear) + "年)" : "");
+    + (viewIsYear() ? "(" + esc(curViewYear()) + "年)" : "");
   var h = '<div class="breakdown"><h3>' + title + '</h3>';
   if (rows.length === 0) {
     h += '<div style="font-size:14px;color:var(--sub);font-weight:700;">この条件の記帳はまだありません</div>';
@@ -3725,9 +4085,9 @@ function renderBreakdown() {
       a.paid += billPaidAmt(b); // 一部回収も回収済みに算入(未回収残 = 請求額 − 回収済み額)
     });
   });
-  var advMonths = Object.keys(adv).sort(function (a, b) { return b.localeCompare(a); })
-    .filter(function (ym) { return ui.viewYear === "all" || ym.indexOf(ui.viewYear) === 0; });
-  h += '<div class="breakdown"><h3><span class="bill-badge">請</span>立替の月別累計(請求先: '
+  // 立替累計は全期間のまま(2026-07-22改修18 ユーザー明示)。並びは昇順(古い→新しい)にそろえる
+  var advMonths = Object.keys(adv).sort();
+  h += '<div class="breakdown"><h3><span class="bill-badge">請</span>立替の月別累計(全期間・請求先: '
     + (advAll ? "すべて(全請求先の合算)" : esc(ui.viewClients.join("・"))) + ')</h3>';
   // 預かり残高(2026-07-21改修12): 表示中の請求先ぶんだけ集計する(すべて=全請求先の合算)。
   // 「立替累計 − 回収済み = 未回収残」の式とは無関係の別枠の数字として、4つ目に並べる
@@ -3769,11 +4129,12 @@ function renderBreakdown() {
   el.innerHTML = h;
 }
 
-// 月ページ切替(2026-07-21改修C): 「◀ 前の月 | 2026年7月 | 次の月 ▶」+月一覧。months は新しい順
+// 月ページ切替(2026-07-21改修C): 「◀ 前の月 | 2026年7月 | 次の月 ▶」+月一覧。
+// months は昇順(古い→新しい)で受け取る(2026-07-22改修18): 月チップも古い月が左・新しい月が右に並ぶ
 function monthNavHtml(months, cur, act) {
   var idx = months.indexOf(cur);
-  var newer = idx > 0 ? months[idx - 1] : null;
-  var older = idx < months.length - 1 ? months[idx + 1] : null;
+  var newer = idx < months.length - 1 ? months[idx + 1] : null;
+  var older = idx > 0 ? months[idx - 1] : null;
   var h = '<div class="month-nav">'
     + '<button class="nav"' + (older ? ' data-act="' + act + '" data-name="' + esc(older) + '"' : ' disabled') + '>◀ 前の月</button>'
     + '<span class="cur">' + esc(monthLabel(cur)) + '</span>'
@@ -3793,32 +4154,29 @@ function renderLedger() {
       + '「レシート手入力」か「読み取り結果を貼り付けて取り込み」から、台帳を育てていきましょう。</div>';
     return;
   }
+  // 表示中の月(2026-07-22改修18)に連動。月ナビは画面上部に1つだけ置き、台帳はここでは持たない。
+  // 取引先フィルタ(getFilteredEntries)と併用する
   var filtered = getFilteredEntries();
-  // 絞り込みで1件も出ないとき(2026-07-22改修16-4・検証12 問題4)。
-  // 以前は何も出さなかったため、記帳が残っているのに台帳が真っ白で、戻す手段も分からなかった
-  if (filtered.length === 0 && state.entries.length > 0) {
-    el.innerHTML = '<div class="empty"><div class="title">この絞り込みでは記帳がありません</div>'
-      + (ui.viewClients.length > 0
-        ? '取引先「' + esc(ui.viewClients.join("・")) + '」で絞り込んでいます。<br>'
-          + '<button class="sub-act" data-act="client-tab" data-name="all" style="margin-top:8px;">すべて表示に戻す</button>'
-        : '記帳はありますが、いまの条件では表示されていません。')
+  var curList = filtered.filter(entryMatchesView);
+  // 表示中(月 or 年全体)に記帳が無いとき: 空でもエラーにせず、理由を出し分ける(2026-07-22改修18/18b)
+  if (curList.length === 0) {
+    var scopeHasData = state.entries.some(entryMatchesView);
+    var unit = viewIsYear() ? "年" : "月";
+    el.innerHTML = '<div class="empty"><div class="title">この' + unit + 'の記帳はありません</div>'
+      + (ui.viewClients.length > 0 && scopeHasData
+        ? '取引先「' + esc(ui.viewClients.join("・")) + '」の記帳がこの' + unit + 'にありません。<br>'
+          + '<button class="sub-act" data-act="client-tab" data-name="all" style="margin-top:8px;">すべての取引先を表示</button>'
+        : '上の ◀▶ や月・年ボタンで、記帳のある' + unit + 'に移動できます。')
       + '</div>';
     return;
   }
+  // 年全体は月ごとに区切って(昇順)並べる。月表示は1ヶ月だけ(2026-07-22改修18b)
   var byMonth = {};
-  filtered.forEach(function (e) {
-    var ym = String(e.date || "").slice(0, 7) || "不明";
-    (byMonth[ym] = byMonth[ym] || []).push(e);
-  });
-  var allMonths = Object.keys(byMonth).sort(function (a, b) { return b.localeCompare(a); })
-    .filter(function (ym) { return ui.viewYear === "all" || ym.indexOf(ui.viewYear) === 0; });
-  if (allMonths.length === 0) { el.innerHTML = ""; return; }
-  // 月ページ切替(2026-07-21改修C): 1ヶ月区切りで表示。既定はデータのある最新月。
-  // ページを切り替えても各月の合計・年間の科目別集計は変わらない(表示範囲が変わるだけ)
-  var cur = allMonths.indexOf(ui.ledgerMonth) !== -1 ? ui.ledgerMonth : allMonths[0];
-  var h = monthNavHtml(allMonths, cur, "ledger-month");
-  [cur].forEach(function (ym) {
-    var list = byMonth[ym];
+  curList.forEach(function (e) { var k = String(e.date || "").slice(0, 7) || "不明"; (byMonth[k] = byMonth[k] || []).push(e); });
+  var months = viewIsYear() ? Object.keys(byMonth).sort() : [curViewMonth()];
+  var h = '';
+  months.forEach(function (ym) {
+    var list = byMonth[ym] || [];
     var total = 0, ghostSum = 0;
     // 月合計は自分負担ベース(総額−Σ請求分)。各行の表示金額は総額のまま保持する
     list.forEach(function (e) {
@@ -3946,7 +4304,7 @@ function renderLedger() {
 function renderFooter() {
   // 件数はCSVに実際に出る行数(幽霊・自分負担0円を除いた数)に合わせる(2026-07-21 ユーザー指示)
   document.getElementById("footer").innerHTML = state.entries.length > 0
-    ? '<div class="footer"><div class="footer-inner"><button data-act="open-csv">CSVをダウンロード(' + csvTargets().length + '件)</button></div></div>'
+    ? '<div class="footer"><div class="footer-inner"><button data-act="open-csv">CSVを出力(確定申告用・' + csvTargets().length + '件)</button></div></div>'
     : "";
 }
 
@@ -3971,8 +4329,11 @@ function renderCsvPanel() {
   if (!ui.csvOpen) { el.innerHTML = ""; return; }
   // 月別の出力と「出力済み/改訂」の管理(2026-07-21改修15 ユーザー指示)
   var months = csvMonthsAll();
-  var cur = months.indexOf(ui.csvMonth) !== -1 ? ui.csvMonth : (months[0] || todayStr().slice(0, 7));
+  // 既定は最新月(昇順配列の末尾)。2026-07-22改修18で月の並びを昇順にそろえた
+  var cur = months.indexOf(ui.csvMonth) !== -1 ? ui.csvMonth : (months[months.length - 1] || todayStr().slice(0, 7));
   var monthList = csvTargets().filter(function (e) { return String(e.date || "").slice(0, 7) === cur; });
+  // 「この年を出力」の件数(2026-07-22改修18b): 選択中の月の年ぶんのCSV対象行
+  var yearCnt = csvTargets().filter(function (e) { return String(e.date || "").slice(0, 4) === cur.slice(0, 4); }).length;
   var mDone = 0, mRev = 0, mNew = 0, lastAt = "";
   monthList.forEach(function (e) {
     var st = exportState(e);
@@ -3997,11 +4358,13 @@ function renderCsvPanel() {
     + (months.length > 0 ? monthNavHtml(months, cur, "csv-month") : '')
     + '<div class="csv-status">' + statusLine + '</div>'
     + '<div class="csv-scope">'
-    + '<button class="' + onCls("month") + '" data-act="csv-scope" data-scope="month">この月を出力(' + monthList.length + '件)</button>'
+    // この月/この年を並べる(2026-07-22改修18b: 年全体で確定申告用に「この年」をまとめて出力できる)。
+    // 範囲をボタン名+2行目に明記する(2026-07-22改修16-2/17-2)。ぜんぶ=全期間なので役割は重複しない
     + '<div class="two">'
-    // 範囲をボタン名に明記する(2026-07-22改修16-2・検証12 問題2)。
-    // 月ページの中にあるため「この月の未出力だけ」と読まれ、別の月まで出力済みになっていた。
-    // 375pxで不格好に折り返さないよう、「全期間」を2行目に固定して改行位置をそろえる(改修17-2・最終確認 問題14)
+    + '<button class="' + onCls("month") + '" data-act="csv-scope" data-scope="month">この月を出力<span class="sub">' + esc(monthLabel(cur)) + ' ' + monthList.length + '件</span></button>'
+    + '<button class="' + onCls("year") + '" data-act="csv-scope" data-scope="year">この年を出力<span class="sub">' + esc(cur.slice(0, 4)) + '年 ' + yearCnt + '件</span></button>'
+    + '</div>'
+    + '<div class="two">'
     + '<button class="' + onCls("need") + '" data-act="csv-scope" data-scope="need">未出力・改訂だけ<span class="sub">全期間 ' + needCnt + '件</span></button>'
     + '<button class="' + onCls("all") + '" data-act="csv-scope" data-scope="all">ぜんぶ<span class="sub">全期間 ' + csvTargets().length + '件</span></button>'
     + '</div>'
@@ -4121,8 +4484,9 @@ function renderBillsPage(el) {
     var ym = String(d.e.date || "").slice(0, 7);
     (byMonth[ym] = byMonth[ym] || []).push(d);
   });
-  var months = Object.keys(byMonth).sort(function (a, b) { return b.localeCompare(a); });
-  var cur = months.indexOf(ui.billsMonth) !== -1 ? ui.billsMonth : months[0];
+  // 月チップは昇順(古い→新しい)。既定は最新月(末尾)。2026-07-22改修18
+  var months = Object.keys(byMonth).sort();
+  var cur = months.indexOf(ui.billsMonth) !== -1 ? ui.billsMonth : months[months.length - 1];
   h += monthNavHtml(months, cur, "bills-month");
   var list = byMonth[cur];
   var unpaid = list.filter(function (d) { return d.b.status !== "paid"; });
@@ -4215,60 +4579,99 @@ function mergeSectionHtml() {
   var kind = ui.mergeKind === "store" ? "store" : "client";
   var data = mergeData(kind);   // 名前の顔ぶれが変わったときだけ計算し直す(改修14b・検証11 問題3)
   var names = data.names;
-  var opts = function (sel) {
-    return '<option value=""' + (!sel ? " selected" : "") + '>(選んでください)</option>'
-      + names.map(function (n) {
-        return '<option value="' + esc(n.name) + '"' + (n.name === sel ? " selected" : "") + '>' + esc(n.name) + '</option>';
-      }).join("");
-  };
+  var toName = mergeToName();
+  // まとめ先の選択肢(既存の名前 + 新しい名前を入力)
+  var toOpts = '<option value=""' + (!ui.mergeToAdding && !ui.mergeTo ? " selected" : "") + '>(選んでください)</option>'
+    + names.map(function (n) {
+      return '<option value="' + esc(n.name) + '"' + (!ui.mergeToAdding && n.name === ui.mergeTo ? " selected" : "") + '>' + esc(n.name) + '</option>';
+    }).join("")
+    + '<option value="__NEW__"' + (ui.mergeToAdding ? " selected" : "") + '>＋ 新しい名前を入力</option>';
+  // まとめる別名の一覧(まとめ先以外)。タップで選択(複数可・上限なし)。選択中は ✓
+  var aliasBtns = names.filter(function (n) {
+    return !(toName && mergeSameName(kind, n.name, toName));
+  }).map(function (n) {
+    var on = ui.mergeFroms.indexOf(n.name) !== -1;
+    return '<button class="tab' + (on ? " on" : "") + '" data-act="merge-from-toggle" data-name="' + esc(n.name) + '">'
+      + (on ? "✓ " : "") + esc(n.name) + '</button>';
+  }).join("");
+  var aliasHtml = names.length === 0
+    ? '<div class="bill-note">まだ名前がありません。</div>'
+    : '<div class="merge-alias-list">' + aliasBtns + '</div>';
+  // 「もしかして」候補(保守的判定=表記ゆれのみ)。押すと下の組み立てに追加する
   var hits = data.hits;
   var hitsHtml = hits.length === 0
     ? '<div class="bill-note" style="margin-bottom:8px;">似ている名前は見つかりませんでした。</div>'
-    : '<div class="lb" style="font-size:14px;font-weight:800;color:var(--sub);">もしかしてこれですか?</div>'
+    : '<div class="lb" style="font-size:14px;font-weight:800;color:var(--sub);">もしかしてこれですか?(押すと下に追加)</div>'
       + hits.map(function (h) {
         return '<div class="merge-hit">'
           + '<div class="pair">' + esc(h.from) + ' ／ ' + esc(h.to) + '</div>'
           + '<div class="why">' + esc(h.why) + '</div>'
-          + '<button data-act="merge-pick" data-from="' + esc(h.from) + '" data-to="' + esc(h.to) + '">「' + esc(h.to) + '」にまとめる</button>'
-          + '<button data-act="merge-pick" data-from="' + esc(h.to) + '" data-to="' + esc(h.from) + '">「' + esc(h.from) + '」にまとめる</button>'
+          + '<button data-act="merge-suggest" data-to="' + esc(h.to) + '" data-from="' + esc(h.from) + '">「' + esc(h.to) + '」にまとめる</button>'
+          + '<button data-act="merge-suggest" data-to="' + esc(h.from) + '" data-from="' + esc(h.to) + '">「' + esc(h.from) + '」にまとめる</button>'
           + '</div>';
       }).join("");
   var m = ui.mergeConfirm;
   var confirmHtml = '';
   if (m) {
     // 件数はここで数え直す(パネルを開いたまま記帳が増えても、表示が古くならない・検証11 問題4)
-    var txt = mergeCountText(mergeCounts(m.kind, m.from, m.to));
-    var nameA = '「<strong>' + esc(m.from) + '</strong>」', nameB = '「<strong>' + esc(m.to) + '</strong>」';
+    var txt = mergeCountText(mergeCountsMulti(m.kind, m.froms, m.to));
+    var list = m.froms.map(function (x) { return '「' + esc(x) + '」'; }).join("・");
     confirmHtml = '<div class="neg-confirm">'
-      + (txt
-        ? '<strong>' + esc(txt) + '</strong>が' + nameA + '→' + nameB + 'に変わります。'
-        : nameA + 'を' + nameB + 'にまとめます(いま変わるものはありません)。')
-      + '<strong>取り消せません。</strong>'
-      + '経費の金額は変わりません(未回収残・預かり残高は組み替わることがあります)。'
+      + '<strong>' + m.froms.length + '件の名前</strong>' + list + 'を「<strong>' + esc(m.to) + '</strong>」にまとめます。'
+      + (txt ? '<strong>' + esc(txt) + '</strong>が変わります。' : '(いま変わるものはありません。)')
+      + '<strong>取り消せません。</strong>経費の金額は変わりません(未回収残・預かり残高は組み替わることがあります)。'
       + '<div class="row"><button class="go" data-act="merge-go">まとめる</button>'
       + '<button class="stop" data-act="merge-stop">やめる</button></div>'
       + '</div>';
   }
+  var selNote = ui.mergeFroms.length > 0
+    ? '<div class="bill-note" style="margin:6px 0;">まとめる別名(' + ui.mergeFroms.length + '件): ' + esc(ui.mergeFroms.join("・")) + '</div>'
+    : '';
+  // 統合の記憶(2026-07-22改修19): 別名→正式名の一覧。既定は閉。個別に削除できる(過去の記帳は変えない)
+  var mem = aliasList();
+  var memOpen = secIsOpen("aliasmem", false);
+  var memHtml = '<div style="margin-top:12px;">'
+    + '<button class="sec-head" data-act="sec-toggle" data-key="aliasmem" aria-expanded="' + (memOpen ? "true" : "false") + '" style="font-size:16px;">'
+    + '<span>統合の記憶(' + mem.length + '件)</span><span class="mark">' + (memOpen ? "とじる ▴" : "ひらく ▾") + '</span></button>'
+    + (memOpen
+      ? '<div class="sec-body">'
+        + (mem.length === 0
+          ? '<div class="bill-note">まだ記憶はありません(統合すると「別名→正式名」がここに残ります)。</div>'
+          : '<div class="bill-note">この別名で新しく入力・取り込みされた名前は、自動で正式名になります。削除すると以後は変換しません(過去の記帳は変わりません)。</div>'
+            + mem.map(function (x) {
+              return '<div class="client-row"><span class="name" style="font-size:15px;">'
+                + esc(x.a.from) + ' → ' + esc(x.a.to)
+                + ' <span style="font-size:12px;color:var(--sub);font-weight:700;">(' + (x.a.kind === "store" ? "店名" : "取引先") + ')</span></span>'
+                + '<button class="mini-btn-shu" data-act="alias-del" data-key="' + esc(x.key) + '">削除</button></div>';
+            }).join(""))
+        + '</div>'
+      : '')
+    + '</div>';
   return '<section>'
     + '<button class="sec-head" data-act="sec-toggle" data-key="merge" aria-expanded="' + (secIsOpen("merge", true) ? "true" : "false") + '">'
     + '<span>名前の統合</span><span class="mark">' + (secIsOpen("merge", true) ? "とじる ▴" : "ひらく ▾") + '</span></button>'
     + (secIsOpen("merge", true)
       ? '<div class="sec-body">'
-        + '<div class="bill-note" style="margin-bottom:8px;">同じ相手・同じ店が別の名前で入っているとき、ひとつにまとめます(取り消せません)。</div>'
+        + '<div class="bill-note" style="margin-bottom:8px;">同じ相手・同じ店が別の名前で入っているとき、ひとつにまとめます(取り消せません)。まとめ先を選ぶ(新しい名前も可)→ まとめる別名を複数選ぶ、の順です。</div>'
         + '<div class="merge-tabs">'
         + '<button class="' + (kind === "client" ? "on" : "") + '" data-act="merge-kind" data-kind="client">取引先名</button>'
         + '<button class="' + (kind === "store" ? "on" : "") + '" data-act="merge-kind" data-kind="store">店名</button>'
         + '</div>'
         + hitsHtml
         + '<div class="merge-pick">'
-        + '<div class="lb">まとめたい名前(この名前が消えます)</div>'
-        + '<select data-change="merge-from">' + opts(ui.mergeFrom) + '</select>'
         + '<div class="lb">まとめ先(正式名)</div>'
-        + '<select data-change="merge-to">' + opts(ui.mergeTo) + '</select>'
-        + '<button class="merge-go" data-act="merge-open">この2つをまとめる</button>'
+        + '<select data-change="merge-to">' + toOpts + '</select>'
+        + (ui.mergeToAdding
+          ? '<input type="text" placeholder="新しいまとめ先の名前を入力" value="' + esc(ui.mergeToNew) + '" data-input="merge-to-new" style="margin-top:6px;">'
+          : '')
+        + '<div class="lb" style="margin-top:8px;">まとめる別名(複数選べます)</div>'
+        + aliasHtml
+        + selNote
+        + '<button class="merge-go" data-act="merge-open">選んだ別名をまとめる</button>'
         + '</div>'
         + confirmHtml
         + (ui.mergeMsg ? '<div class="notice notice-info" style="margin-top:8px;">' + esc(ui.mergeMsg) + '</div>' : '')
+        + memHtml
         + '</div>'
       : '')
     + '</section>';
@@ -4349,10 +4752,10 @@ function renderPage() {
 
     + secHtml("tax", "確定申告への使い方",
       '1年分の帳簿がたまったら、次の流れで確定申告に使えます。<br>'
-    + '① 台帳の上の<strong>年タブ</strong>で、申告する年(例: 2026年)に絞り込みます(記帳が2年分以上あると年タブが表示されます)。<br>'
+    + '① 画面上部の月ナビで<strong>「◯年 全体」</strong>に切り替えます(申告する年を選ぶと、科目別集計がその年の合計になります)。<br>'
     + '② 絞り込んだ状態の<strong>科目別集計</strong>の金額を、申告書類の経費欄へ科目ごとに書き写します。白色申告なら「収支内訳書」、青色申告なら「青色申告決算書」の経費の内訳欄です(会議費など欄が無い科目は空欄の科目名を書いて使います)。科目別集計は<strong>自分負担(総額−請求分)ベース</strong>なので、そのまま転記できます。<br>'
     + '③ CSVは<strong>確定申告用</strong>です。7列(<span class="mono">日付,店名,金額,勘定科目,支払方法,取引先,メモ</span>)で、<strong>「金額」=自分負担(総額−請求分の合計)</strong>なので、そのまま申告に使えます。<strong>立替分・回収の情報はCSVには出ません。</strong>自分負担0円の行(全額を会社などに請求した立替=自分の経費ではないもの)と幽霊行もCSVには出ません。立替・回収・幽霊まで含めた<strong>全データの控えはJSON控え</strong>(上のバックアップ)の役目です。<br>'
-    + '④ 下の「CSVをダウンロード」→「全文をコピー」で、その年の明細の控えを保存します。レシート原本とこの帳簿(CSV控え)は7年保存します。<br>'
+    + '④ 下の「CSVを出力(確定申告用)」→「この年を出力」→「全文をコピー」で、その年の明細の控えを保存します。レシート原本とこの帳簿(CSV控え)は7年保存します。<br>'
     + '⑤ 会計ソフト(freee・マネーフォワード・弥生など)を使う場合は、CSVをソフトに取り込めば、転記なしで集計・申告書類の作成までできます。<br>'
     + 'なお、このCSVを「読み取り結果を貼り付けて取り込み」に貼り直すと、<strong>請求情報なしの承認待ち</strong>として取り込まれます(それで正常です。全データを丸ごと戻す往復はJSON控えを使ってください)。')
 
@@ -4474,6 +4877,7 @@ function render() {
   renderStoreDatalist();
   renderClientDatalist();
   renderSaveBar();
+  renderMonthNav();
   renderSummary();
   renderNotices();
   renderImportPanel();
@@ -4533,8 +4937,12 @@ var ACTIONS = {
     render();
   },
   "year-tab": function (el) { ui.viewYear = el.dataset.name; render(); },
-  // 月ページ切替(2026-07-21改修C)
-  "ledger-month": function (el) { ui.ledgerMonth = el.dataset.name; render(); },
+  // 表示中の月の切替(2026-07-22改修18): サマリー・科目別・台帳が一斉にこの月へ切り替わる
+  "view-month": function (el) { ui.viewScope = "month"; ui.viewMonth = el.dataset.name; render(); },
+  // 年全体の切替(2026-07-22改修18b): その年の合計をサマリー・科目別・台帳に表示(確定申告の年間科目別)
+  "view-year": function (el) { ui.viewScope = "year"; ui.viewYearSel = el.dataset.name; render(); },
+  // 月ページ切替(2026-07-21改修C。改修18で view-month に統合。互換のため viewMonth を更新)
+  "ledger-month": function (el) { ui.viewScope = "month"; ui.viewMonth = el.dataset.name; render(); },
   "bills-month": function (el) { ui.billsMonth = el.dataset.name; ui.billsCollectConfirm = null; renderPage(); },
   "bills-collect-open": function (el) { ui.billsCollectConfirm = { type: el.dataset.type, month: el.dataset.month }; renderPage(); },
   "bills-collect-go": function (el) { collectMonth(el.dataset.month, el.dataset.type === "collect"); },
@@ -4593,16 +5001,36 @@ var ACTIONS = {
   // 名前の統合(2026-07-21改修14-4)
   "merge-kind": function (el) {
     ui.mergeKind = el.dataset.kind === "store" ? "store" : "client";
-    ui.mergeFrom = "";
+    ui.mergeFroms = [];
     ui.mergeTo = "";
+    ui.mergeToAdding = false;
+    ui.mergeToNew = "";
     ui.mergeConfirm = null;
     ui.mergeMsg = "";
     renderPage();
   },
-  "merge-pick": function (el) { mergeOpenConfirm(ui.mergeKind, el.dataset.from, el.dataset.to); },
-  "merge-open": function () { mergeOpenConfirm(ui.mergeKind, ui.mergeFrom, ui.mergeTo); },
-  "merge-go": function () { mergeGo(); },
+  // 別名の選択(複数可・2026-07-22改修18c)。タップで追加/解除
+  "merge-from-toggle": function (el) {
+    var n = el.dataset.name;
+    var i = ui.mergeFroms.indexOf(n);
+    if (i === -1) ui.mergeFroms.push(n); else ui.mergeFroms.splice(i, 1);
+    ui.mergeConfirm = null; ui.mergeMsg = "";
+    renderPage();
+  },
+  // 「もしかして」候補から組み立てに追加(まとめ先=to、別名に from を足す。2026-07-22改修18c)
+  "merge-suggest": function (el) {
+    var to = el.dataset.to, from = el.dataset.from;
+    ui.mergeToAdding = false; ui.mergeTo = to;
+    ui.mergeFroms = ui.mergeFroms.filter(function (x) { return !mergeSameName(ui.mergeKind, x, to); });
+    if (!mergeSameName(ui.mergeKind, from, to) && ui.mergeFroms.indexOf(from) === -1) ui.mergeFroms.push(from);
+    ui.mergeConfirm = null; ui.mergeMsg = "";
+    renderPage();
+  },
+  "merge-open": function () { mergeOpenConfirmMulti(ui.mergeKind, ui.mergeFroms, mergeToName()); },
+  "merge-go": function () { mergeGoMulti(); },
   "merge-stop": function () { ui.mergeConfirm = null; ui.mergeMsg = ""; renderPage(); },
+  // 統合の記憶の個別削除(2026-07-22改修19): 以後その別名は自動変換しない(過去の記帳は変えない)
+  "alias-del": function (el) { aliasDelete(el.dataset.key); },
   "open-bills": function () { openPage("bills"); },
   "bill-toggle": function (el) { ui.billOpen[el.dataset.key] = el.dataset.open !== "1"; render(); },
   // 金額の±(符号反転。2026-07-21改修12-2)
@@ -4703,6 +5131,8 @@ document.addEventListener("input", function (ev) {
   if (kind === "pending") updPending(el.dataset.id, el.dataset.field, el.value);
   else if (kind === "draft") updDraft(el.dataset.field, el.value);
   else if (kind === "import-text") ui.importText = el.value;
+  // 新しいまとめ先の名前(2026-07-22改修18c)。入力中は再描画せずフォーカスを保つ
+  else if (kind === "merge-to-new") { ui.mergeToNew = el.value; ui.mergeConfirm = null; ui.mergeMsg = ""; }
   else if (kind === "bill-amt") {
     // 請求先ごとの金額入力(2026-07-21改修A): bills[bidx].amount を更新し、自分負担の表示だけ差し替える
     var bt = billTargetOf(el.dataset.scope, el.dataset.id || "");
@@ -4772,9 +5202,16 @@ document.addEventListener("change", function (ev) {
   }
   else if (kind === "draft-client") draftClientSel(el.value);
   else if (kind === "entry-cat") changeEntryCategory(el.dataset.id, el.value);
-  // 名前の統合のプルダウン(2026-07-21改修14-4)。選び直したら確認パネルは閉じる
-  else if (kind === "merge-from") { ui.mergeFrom = el.value; ui.mergeConfirm = null; ui.mergeMsg = ""; renderPage(); }
-  else if (kind === "merge-to") { ui.mergeTo = el.value; ui.mergeConfirm = null; ui.mergeMsg = ""; renderPage(); }
+  // 名前の統合のまとめ先プルダウン(2026-07-22改修18c)。「＋新しい名前」で入力欄を出す
+  else if (kind === "merge-to") {
+    if (el.value === "__NEW__") { ui.mergeToAdding = true; }
+    else { ui.mergeToAdding = false; ui.mergeTo = el.value; }
+    // まとめ先に選んだ名前が別名に入っていたら外す
+    var tnm = mergeToName();
+    if (tnm) ui.mergeFroms = ui.mergeFroms.filter(function (x) { return !mergeSameName(ui.mergeKind, x, tnm); });
+    ui.mergeConfirm = null; ui.mergeMsg = "";
+    renderPage();
+  }
 });
 document.addEventListener("focusin", function (ev) {
   var el = ev.target;
