@@ -705,6 +705,8 @@ var ui = {
   // Googleドライブ控え(2026-07-22 第9段)
   gdriveMsg: "",         // 案内バー下の1行エラー(次のタップ・成功で消す)
   gdriveSetMsg: "",      // 設定ページ「Googleドライブ控え」欄の1行メッセージ(保存・接続テスト・解除の結果)
+  gdriveCidWarn: "",     // Client IDの形式が怪しいときの1行警告(保存時にセット。次の保存・ページ開き直しで消す・2026-07-22防御強化)
+  gdriveCidShowFull: false, // 保存済みClient IDの全文表示トグル(タップで開閉・2026-07-22防御強化)
   // 保存状態の常時表示(2026-07-21 ユーザー指示)
   dirty: false,          // 未保存の変更あり(markDirtyでON・保存成功でOFF)
   justSavedMsg: "",      // 手動保存ボタンの「保存しました HH:MM」表示(次の変更で消える)
@@ -2331,6 +2333,16 @@ var gdrive = {
 function gdriveClientId() {
   try { return String(localStorage.getItem(GDRIVE_CID_KEY) || "").trim(); } catch (e) { return ""; }
 }
+// 保存済みClient IDの省略表示(先頭10文字+…+末尾15文字)。短ければそのまま表示する(2026-07-22防御強化)
+function gdriveCidAbbrev(v) {
+  if (!v) return "";
+  if (v.length <= 28) return v;
+  return v.slice(0, 10) + "…" + v.slice(-15);
+}
+// 形式が明らかにおかしいか(末尾が .apps.googleusercontent.com でない、または30文字未満)(2026-07-22防御強化)
+function gdriveCidLooksInvalid(v) {
+  return !v || v.length < 30 || !/\.apps\.googleusercontent\.com$/.test(v);
+}
 // 静かな再接続(2026-07-22改良1)の判断用フラグ。読めない・書けない環境でも動作は変わらない(毎回ポップアップになるだけ)
 function gdriveConsented() {
   try { return localStorage.getItem(GDRIVE_CONSENT_KEY) === "1"; } catch (e) { return false; }
@@ -2572,7 +2584,9 @@ function gdriveBackup() {
 // 設定ページ: Client ID の保存
 function gdriveCidSave() {
   var el = document.getElementById("gdriveCidInput");
-  var v = el ? el.value.trim() : "";
+  // 前後の空白・改行・タブ・全角スペース等を除去(スマホのコピペで紛れ込む対策・2026-07-22防御強化)
+  var v = el ? String(el.value == null ? "" : el.value).trim() : "";
+  ui.gdriveCidWarn = "";
   if (!v) {
     ui.gdriveSetMsg = "Client IDを入力してください(接続をやめるときは「接続解除」を押してください)。";
     renderPage();
@@ -2588,6 +2602,11 @@ function gdriveCidSave() {
   gdriveResetToken(false); // IDを差し替えたら古いトークンは使わない
   ui.gdriveMsg = "";
   ui.gdriveSetMsg = "Client IDを保存しました。";
+  // 明らかに不正な形式なら1行警告(保存は止めない・2026-07-22防御強化)
+  if (gdriveCidLooksInvalid(v)) {
+    ui.gdriveCidWarn = "形式が正しくないようです。Google Cloud Consoleのクライアント名横のコピーアイコンから再コピーしてください。";
+  }
+  ui.gdriveCidShowFull = false; // 新しく保存したら省略表示に戻す
   renderPage();
   render(); // 案内バーの表示条件が変わるため
 }
@@ -2870,6 +2889,8 @@ function openPage(name) {
   ui.selfTestMsg = "";
   ui.jsonMsg = "";
   ui.gdriveSetMsg = ""; // ドライブ控え欄のメッセージも開き直したら消す(2026-07-22 第9段)
+  ui.gdriveCidWarn = ""; // Client ID形式の警告も開き直したら消す(2026-07-22防御強化)
+  ui.gdriveCidShowFull = false; // 全文表示も開き直したら省略表示に戻す(2026-07-22防御強化)
   ui.logMsg = "";
   ui.logClearConfirm = false;
   // 名前の統合(2026-07-21改修14-4)は、ページを開き直したら選び直しから始める
@@ -5082,6 +5103,7 @@ function renderPage() {
   }
   // 設定・使い方ページ(2026-07-21改修14-3 ユーザー指示: 全セクションを折りたたみ式にし、
   // 既定は「現在の状態」だけ開いた状態。見出しだけが並ぶ形にする)
+  var gdriveCidNow = gdriveClientId(); // 保存済みClient IDの確認表示用(2026-07-22防御強化)
   el.innerHTML =
     '<div class="page"><div class="page-inner">'
     + '<div class="page-head"><h2>設定・使い方</h2><button class="close-btn" data-act="close-page">閉じる</button></div>'
@@ -5126,9 +5148,17 @@ function renderPage() {
     + '<input type="text" id="gdriveCidInput" placeholder="Client ID(○○.apps.googleusercontent.com)" value="' + esc(gdriveClientId()) + '" style="margin-top:6px;">'
     + '<button class="sub-act" data-act="gdrive-cid-save">Client IDを保存</button>'
     + '<button class="sub-act" data-act="gdrive-test"' + (gdrive.busy ? ' disabled' : '') + '>接続テスト</button>'
+    // 保存済みClient IDの確認表示(先頭10文字+…+末尾15文字。タップで全文表示を切替・2026-07-22防御強化)
+    + (gdriveCidNow
+      ? '<div class="mono" data-act="gdrive-cid-toggle" style="margin-top:6px;cursor:pointer;word-break:break-all;">保存済み: '
+        + esc(ui.gdriveCidShowFull ? gdriveCidNow : gdriveCidAbbrev(gdriveCidNow))
+        + (gdriveCidNow.length > 28 ? '<span style="color:var(--sub);font-weight:700;"> (タップで' + (ui.gdriveCidShowFull ? "省略" : "全文") + '表示)</span>' : '')
+        + '</div>'
+      : '')
     + '<div style="margin-top:6px;">最後のドライブ控え: ' + esc(state.lastDriveBackup || "未実施") + '</div>'
     + '<button class="sub-act" data-act="gdrive-disconnect" style="color:var(--warn);border-color:var(--warn);">接続解除</button>'
-    + (ui.gdriveSetMsg ? '<div class="notice notice-info" style="margin-top:8px;">' + esc(ui.gdriveSetMsg) + '</div>' : ''))
+    + (ui.gdriveSetMsg ? '<div class="notice notice-info" style="margin-top:8px;">' + esc(ui.gdriveSetMsg) + '</div>' : '')
+    + (ui.gdriveCidWarn ? '<div class="notice notice-warn" style="margin-top:8px;">' + esc(ui.gdriveCidWarn) + '</div>' : ''))
 
     + secHtml("dellog", "削除ログ(原本写真の整理用)",
       '記帳を削除すると、消した内容(削除日・日付・店名・金額・科目・メモ)がここに記録されます。現在 <strong>' + state.deletedLog.length + '件</strong>。<br>'
@@ -5388,6 +5418,7 @@ var ACTIONS = {
   // Googleドライブ控え(2026-07-22 第9段)
   "gdrive-backup": function () { gdriveBackup(); },
   "gdrive-cid-save": function () { gdriveCidSave(); },
+  "gdrive-cid-toggle": function () { ui.gdriveCidShowFull = !ui.gdriveCidShowFull; renderPage(); },
   "gdrive-test": function () { gdriveTest(); },
   "gdrive-disconnect": function () { gdriveDisconnect(); },
   "copy-dellog": function () { copyDeletedLog(); },
